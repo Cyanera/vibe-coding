@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مسار مشاريع Vibe Coding</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Changa:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ink:#16212E; --ink-2:#3C4C5F; --ink-3:#6C7C8E;
+  --paper:#ECEFF3; --surface:#FFFFFF; --surface-2:#F5F7FA;
+  --line:#D2DAE3; --line-strong:#B4C0CD;
+  --signal:#D9711A; --signal-soft:#FBEBDB; --signal-ink:#8A4409;
+  --ok:#0E7A6B; --ok-soft:#DCF0EC; --ok-ink:#0A5A4E;
+  --go:#2F5FA8; --go-soft:#E2EAF7; --go-ink:#1E4079;
+  --late:#B23A2E; --late-soft:#F8E3E0; --late-ink:#8A2B21;
+  --idle-soft:#E8ECF1;
+  --shadow:0 1px 2px rgba(22,33,46,.06), 0 8px 24px -12px rgba(22,33,46,.18);
+  --radius:10px;
+  --display:"Changa","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --body:"IBM Plex Sans Arabic",system-ui,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ink:#E7EDF4; --ink-2:#B3C0CE; --ink-3:#8494A5;
+  --paper:#10171F; --surface:#18212C; --surface-2:#1E2935;
+  --line:#2C3945; --line-strong:#3D4C5B;
+  --signal:#F0913F; --signal-soft:#3A2412; --signal-ink:#F6BA7C;
+  --ok:#3FBCA6; --ok-soft:#10312C; --ok-ink:#6FD6C3;
+  --go:#6E9FE0; --go-soft:#152438; --go-ink:#9CC0F0;
+  --late:#E4685A; --late-soft:#3A1915; --late-ink:#F09A8F;
+  --idle-soft:#212C38;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --ink:#E7EDF4; --ink-2:#B3C0CE; --ink-3:#8494A5;
+  --paper:#10171F; --surface:#18212C; --surface-2:#1E2935;
+  --line:#2C3945; --line-strong:#3D4C5B;
+  --signal:#F0913F; --signal-soft:#3A2412; --signal-ink:#F6BA7C;
+  --ok:#3FBCA6; --ok-soft:#10312C; --ok-ink:#6FD6C3;
+  --go:#6E9FE0; --go-soft:#152438; --go-ink:#9CC0F0;
+  --late:#E4685A; --late-soft:#3A1915; --late-ink:#F09A8F;
+  --idle-soft:#212C38;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:15px; line-height:1.65;
+  padding-block:0 52px; padding-inline:16px;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%}
+[hidden]{display:none !important}
+.wrap{max-width:1180px;margin-inline:auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+button,input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--go-ink)}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px;border-radius:4px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header.top{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb,var(--paper) 90%,transparent);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+  margin-inline:-16px; padding:calc(12px + env(safe-area-inset-top,0px)) 16px 0;
+}
+.brandrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:1180px;margin-inline:auto}
+.brandrow h1{font-size:20px;letter-spacing:-.01em}
+.brandrow .sub{color:var(--ink-3);font-size:12.5px}
+.spacer{flex:1}
+.tabs{display:flex;gap:2px;overflow-x:auto;max-width:1180px;margin-inline:auto;padding-top:9px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{border:0;background:transparent;color:var(--ink-3);cursor:pointer;padding:8px 13px 10px;
+  font-size:14px;font-weight:500;white-space:nowrap;border-bottom:2.5px solid transparent}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--signal);font-weight:600}
+
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:18px 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.stat .k{font-size:11.5px;color:var(--ink-3);letter-spacing:.04em;font-weight:500}
+.stat .v{font-family:var(--display);font-size:25px;font-weight:600;line-height:1.25;margin-top:2px}
+.stat .n{font-size:12px;color:var(--ink-3)}
+.stat.alert{border-color:var(--late);background:var(--late-soft)}
+.stat.alert .v,.stat.alert .k{color:var(--late-ink)}
+.stat.focus{border-color:var(--signal);background:var(--signal-soft)}
+.stat.focus .v,.stat.focus .k{color:var(--signal-ink)}
+
+.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+table.board{border-collapse:separate;border-spacing:0;width:100%;min-width:780px}
+table.board th,table.board td{border-bottom:1px solid var(--line);padding:0;text-align:right;vertical-align:top}
+table.board thead th{background:var(--surface-2);padding:10px 12px;font-weight:600;font-size:12.5px;border-bottom:1px solid var(--line-strong)}
+thead th .due{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:2px}
+thead th .w{display:inline-block;font-size:10.5px;color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-top:4px}
+.gcell{position:sticky;inset-inline-start:0;background:var(--surface);z-index:2;border-inline-end:1px solid var(--line-strong);min-width:184px;padding:10px 12px !important}
+thead .gcell{background:var(--surface-2);z-index:3}
+.gname{font-weight:600;font-size:14px;display:block;cursor:pointer;background:none;border:0;padding:0;text-align:right;color:inherit;width:100%}
+.gname:hover{color:var(--signal)}
+.gmeta{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.bar{height:4px;background:var(--idle-soft);border-radius:99px;margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:99px}
+td.cellwrap{padding:7px !important}
+.cell{width:100%;display:block;text-align:center;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface-2);padding:9px 6px;font-size:12px;font-weight:500;color:var(--ink-3);
+  transition:transform .08s ease, box-shadow .12s ease}
+.cell.act{cursor:pointer}
+.cell.act:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.cell .lab{display:block}
+.cell .sc{display:block;font-size:11px;margin-top:2px;opacity:.85}
+.cell .note{display:block;font-size:10.5px;margin-top:3px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell[data-s="wip"]{background:var(--signal-soft);border-color:var(--signal);color:var(--signal-ink)}
+.cell[data-s="submitted"]{background:var(--go-soft);border-color:var(--go);color:var(--go-ink)}
+.cell[data-s="approved"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
+.cell[data-s="blocked"]{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
+.cell[data-s="none"]{border-style:dashed}
+.cell[data-late="1"]{box-shadow:inset 3px 0 0 var(--late)}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:12px 2px;font-size:12px;color:var(--ink-3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:3px;border:1px solid var(--line)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;display:flex;flex-direction:column;gap:9px}
+.card.risk{border-inline-start:3px solid var(--late)}
+.card h3{font-size:16px}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11.5px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--ink-3);background:var(--surface-2)}
+.chip.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
+.chip.late{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
+.chip.sig{background:var(--signal-soft);border-color:var(--signal);color:var(--signal-ink)}
+.chip.go{background:var(--go-soft);border-color:var(--go);color:var(--go-ink)}
+.canvas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.canvas div{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.canvas .k{font-size:10.5px;color:var(--ink-3);letter-spacing:.04em}
+.canvas .v{font-size:12.5px;margin-top:2px}
+.members{font-size:12.5px;color:var(--ink-2)}
+
+.tl-item{display:grid;grid-template-columns:136px 1fr;gap:16px;padding:18px 0;border-bottom:1px solid var(--line)}
+.tl-item:last-child{border-bottom:0}
+.tl-date{font-family:var(--mono);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tl-date .rel{display:block;font-family:var(--body);font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.tl-date .rel.now{color:var(--late);font-weight:600}
+.tl-body h3{font-size:16.5px}
+.tl-body .desc{font-size:13.5px;color:var(--ink-2);margin-top:3px}
+.tl-body ul{margin:9px 0 0;padding-inline-start:18px;font-size:13px;color:var(--ink-2)}
+.mini{height:6px;background:var(--idle-soft);border-radius:99px;margin-top:10px;max-width:280px;overflow:hidden}
+.mini i{display:block;height:100%;background:var(--go)}
+.tl-body .cnt{font-size:11.5px;color:var(--ink-3);margin-top:4px}
+
+table.grid{width:100%;border-collapse:collapse;background:var(--surface);font-size:13.5px}
+table.grid th,table.grid td{border:1px solid var(--line);padding:8px 10px;text-align:right}
+table.grid thead th{background:var(--surface-2);font-size:12px;font-weight:600}
+table.grid td.tot{font-weight:600;background:var(--surface-2)}
+
+.feed{display:flex;flex-direction:column}
+.ev{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .when{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.ev .what{font-size:13.5px}
+.ev .who{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+
+.btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:8px;
+  padding:7px 14px;font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.primary:hover{opacity:.9}
+.btn.danger{color:var(--late);border-color:var(--late)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+label.f{display:block;font-size:12px;color:var(--ink-3);margin-bottom:3px;letter-spacing:.03em}
+input.t,textarea.t,select.t{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px}
+textarea.t{resize:vertical;min-height:58px;line-height:1.55}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.sec h2{font-size:16px;margin-bottom:4px}
+.sec .hint{font-size:12.5px;color:var(--ink-3);margin-bottom:12px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px}
+
+.veil{position:fixed;inset:0;background:rgba(10,16,23,.45);z-index:50}
+.modal{position:fixed;z-index:51;inset-block-start:50%;inset-inline-start:50%;transform:translate(50%,-50%);
+  width:min(440px,calc(100vw - 32px));max-height:86vh;overflow-y:auto;background:var(--paper);
+  border:1px solid var(--line-strong);border-radius:14px;box-shadow:var(--shadow);padding:18px}
+.modal h2{font-size:17px;margin-bottom:10px}
+.drawer{position:fixed;inset-block:0;inset-inline-end:0;width:min(520px,100%);z-index:51;background:var(--paper);
+  border-inline-start:1px solid var(--line);overflow-y:auto;
+  padding:calc(18px + env(safe-area-inset-top,0px)) 18px calc(28px + env(safe-area-inset-bottom,0px))}
+.pop{position:fixed;z-index:60;width:min(292px,calc(100vw - 32px));background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px}
+.pop .ttl{font-size:12px;color:var(--ink-3);margin-bottom:8px;line-height:1.45}
+.statuses{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.st{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:6px;font-size:12.5px;cursor:pointer}
+.st[aria-pressed="true"]{border-width:2px;font-weight:600}
+.st[data-s="wip"][aria-pressed="true"]{background:var(--signal-soft);border-color:var(--signal);color:var(--signal-ink)}
+.st[data-s="submitted"][aria-pressed="true"]{background:var(--go-soft);border-color:var(--go);color:var(--go-ink)}
+.st[data-s="blocked"][aria-pressed="true"]{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
+.st[data-s="none"][aria-pressed="true"]{border-color:var(--line-strong)}
+
+.banner{background:var(--signal-soft);border:1px solid var(--signal);color:var(--signal-ink);border-radius:var(--radius);padding:10px 14px;font-size:13px;margin:14px 0}
+.banner.bad{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
+.banner.good{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
+.empty{text-align:center;padding:40px 16px;color:var(--ink-3)}
+.toast{position:fixed;inset-block-end:calc(18px + env(safe-area-inset-bottom,0px));inset-inline-start:50%;
+  transform:translateX(50%);z-index:80;background:var(--ink);color:var(--paper);
+  padding:9px 18px;border-radius:99px;font-size:13.5px;box-shadow:var(--shadow)}
+footer.f{margin-top:26px;font-size:11.5px;color:var(--ink-3);text-align:center}
+code.k{font-family:var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12.5px}
+
+@media (max-width:560px){ .canvas{grid-template-columns:1fr} .tl-item{grid-template-columns:1fr;gap:6px} .brandrow h1{font-size:17px} }
+@media print{ header.top,.tabs,.btn,.legend{display:none !important} body{background:#fff;padding:0} .sec,.card,.scroller{box-shadow:none} }
+@media (prefers-reduced-motion:reduce){ *{transition:none !important;animation:none !important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brandrow">
+      <h1 id="hTitle">مسار مشاريع Vibe Coding</h1>
+      <span class="sub" id="hCourse"></span>
+      <span class="spacer"></span>
+      <span class="chip sig" id="hNext"></span>
+      <span id="hAuth" class="row"></span>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+  </header>
+  <main id="view"><div class="empty">جارِ التحميل…</div></main>
+  <footer class="f" id="foot"></footer>
+</div>
+<div id="layer"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================ حالة التطبيق ============================ */
+var S = {
+  settings:{title:"مسار مشاريع Vibe Coding",course:"",org:"",totalMarks:7},
+  milestones:[], groups:[], progress:{}, evals:{}, log:[],
+  role:"public",          // public | group | teacher
+  myGroup:null,           // {id,name,...} في وضع المجموعة
+  myCode:"", actor:"",
+  tab:"board", err:"", ready:false
+};
+var sb=null;
+var LS="vibe-tracker-session";
+
+var STATUSES=[
+  {k:"none",t:"لم تبدأ"},{k:"wip",t:"قيد العمل"},
+  {k:"submitted",t:"سلّمنا"},{k:"blocked",t:"متعثرة"}
+];
+var ST={none:"لم تبدأ",wip:"قيد العمل",submitted:"سُلّمت",blocked:"متعثرة",approved:"معتمدة"};
+
+/* ============================ أدوات ============================ */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function el(tag,cls,txt){var e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e;}
+function btn(t,cls,fn){var b=el("button","btn "+(cls||""),t); b.type="button"; b.onclick=fn; return b;}
+function q(id){return document.getElementById(id);}
+var fmtDay=new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn",{day:"numeric",month:"long"});
+var fmtFull=new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+var fmtTime=new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+function today(){var d=new Date();d.setHours(0,0,0,0);return d;}
+function parseD(s){var p=String(s||"").split("-");return new Date(+p[0],(+p[1])-1,+p[2]);}
+function daysTo(s){return Math.round((parseD(s)-today())/86400000);}
+function relText(s){var d=daysTo(s); if(d===0)return "اليوم"; if(d===1)return "غداً"; if(d>0)return "بعد "+d+" يوم"; return "متأخر "+Math.abs(d)+" يوم";}
+function dayName(s){return fmtFull.format(parseD(s));}
+function toast(m){var t=el("div","toast",m);document.body.appendChild(t);setTimeout(function(){t.remove();},2600);}
+function closeLayer(){q("layer").innerHTML="";}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeLayer();});
+
+function P(gid,mid){return S.progress[gid+"|"+mid]||{status:"none",note:"",evidence_url:"",approved:false};}
+function E(gid,mid){return S.evals[gid+"|"+mid]||{score:null,teacher_note:""};}
+function cellState(gid,mid){var p=P(gid,mid); return p.approved?"approved":p.status;}
+function isLate(gid,m){var st=cellState(gid,m.id); return st!=="approved" && st!=="submitted" && daysTo(m.due)<0;}
+function gDone(gid){var n=0;S.milestones.forEach(function(m){var st=cellState(gid,m.id); if(st==="approved"||st==="submitted")n++;});return n;}
+function gLate(gid){var n=0;S.milestones.forEach(function(m){if(isLate(gid,m))n++;});return n;}
+function gScore(gid){var t=0,any=false;S.milestones.forEach(function(m){var e=E(gid,m.id);if(typeof e.score==="number"){t+=e.score;any=true;}});return any?Math.round(t*100)/100:null;}
+function nextMilestone(){var u=S.milestones.filter(function(m){return daysTo(m.due)>=0;});return u.length?u[0]:S.milestones[S.milestones.length-1];}
+
+/* ============================ الاتصال ============================ */
+function configured(){
+  var c=window.TRACKER_CONFIG||{};
+  return !!(c.SUPABASE_URL&&c.SUPABASE_ANON_KEY);
+}
+function connect(){
+  if(!window.supabase||!window.supabase.createClient){ S.err="lib"; render(); return false; }
+  var c=window.TRACKER_CONFIG;
+  sb=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_ANON_KEY);
+  return true;
+}
+
+async function loadAll(){
+  try{
+    var r = await Promise.all([
+      sb.from("settings").select("key,value").eq("key","activity").maybeSingle(),
+      sb.from("milestones").select("*").order("ord"),
+      sb.from("groups").select("id,name,ord,members,idea,links,ai_tools,updated_at").order("ord"),
+      sb.from("progress").select("*"),
+      sb.from("activity_log").select("*").order("created_at",{ascending:false}).limit(80)
+    ]);
+    if(r[0].data&&r[0].data.value) S.settings=Object.assign(S.settings,r[0].data.value);
+    S.milestones = (r[1].data||[]).map(function(m){ m.due=m.due_date; m.weight=+m.weight; return m; });
+    S.groups     = r[2].data||[];
+    S.progress   = {}; (r[3].data||[]).forEach(function(p){ S.progress[p.group_id+"|"+p.milestone_id]=p; });
+    S.log        = r[4].data||[];
+    if(S.role==="teacher"){
+      var ev = await sb.from("evaluations").select("*");
+      S.evals={}; (ev.data||[]).forEach(function(e){ S.evals[e.group_id+"|"+e.milestone_id]=e; });
+    }
+    S.err=""; S.ready=true;
+  }catch(e){ S.err="net"; S.ready=true; }
+  render();
+}
+
+function subscribeLive(){
+  try{
+    sb.channel("tracker")
+      .on("postgres_changes",{event:"*",schema:"public",table:"progress"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"groups"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"milestones"},loadAll)
+      .on("postgres_changes",{event:"*",schema:"public",table:"activity_log"},loadAll)
+      .subscribe();
+  }catch(e){}
+}
+
+/* ============================ الهوية ============================ */
+function saveSession(){ try{ localStorage.setItem(LS,JSON.stringify({code:S.myCode,actor:S.actor})); }catch(e){} }
+function readSession(){ try{ return JSON.parse(localStorage.getItem(LS)||"{}"); }catch(e){ return {}; } }
+
+async function groupSignIn(code,actor){
+  var r = await sb.rpc("group_sign_in",{p_code:code});
+  if(r.error) throw r.error;
+  var g=(r.data||[])[0];
+  if(!g) throw new Error("رمز المجموعة غير صحيح");
+  S.myGroup=g; S.myCode=code.trim(); S.actor=(actor||"").trim(); S.role="group";
+  saveSession();
+  return g;
+}
+async function teacherSignIn(email,pass){
+  var r = await sb.auth.signInWithPassword({email:email,password:pass});
+  if(r.error) throw r.error;
+  S.role="teacher"; S.myGroup=null;
+  await loadAll();
+}
+async function signOut(){
+  if(S.role==="teacher"){ try{ await sb.auth.signOut(); }catch(e){} }
+  S.role="public"; S.myGroup=null; S.myCode=""; S.evals={};
+  try{ localStorage.removeItem(LS); }catch(e){}
+  if(S.tab==="mine"||S.tab==="scores"||S.tab==="setup") S.tab="board";
+  await loadAll();
+}
+
+/* ============================ العرض ============================ */
+function tabsFor(){
+  var t=[{k:"board",t:"اللوحة"}];
+  if(S.role==="group") t.push({k:"mine",t:"مجموعتي"});
+  t.push({k:"groups",t:"المجموعات"},{k:"timeline",t:"الخط الزمني"},{k:"feed",t:"سجل الخطوات"});
+  if(S.role==="teacher") t.push({k:"scores",t:"الدرجات"},{k:"setup",t:"الإعدادات"});
+  return t;
+}
+function render(){
+  q("hTitle").textContent=S.settings.title||"مسار مشاريع Vibe Coding";
+  q("hCourse").textContent=S.settings.course||"";
+  q("foot").textContent=S.settings.org||"";
+  var nm=nextMilestone();
+  q("hNext").textContent=nm?("القادم: "+nm.name+" · "+relText(nm.due)):"";
+  q("hNext").hidden=!nm;
+
+  var a=q("hAuth"); a.innerHTML="";
+  if(S.role==="teacher"){
+    a.appendChild(el("span","chip ok","وضع المشرفة"));
+    a.appendChild(btn("خروج","sm",signOut));
+  }else if(S.role==="group"){
+    a.appendChild(el("span","chip go",S.myGroup?S.myGroup.name:"مجموعتي"));
+    a.appendChild(btn("خروج","sm",signOut));
+  }else{
+    a.appendChild(btn("دخول المجموعة","sm primary",openGroupLogin));
+    a.appendChild(btn("المشرفة","sm",openTeacherLogin));
+  }
+
+  var tb=q("tabs"); tb.innerHTML="";
+  var list=tabsFor();
+  if(!list.some(function(x){return x.k===S.tab;})) S.tab="board";
+  list.forEach(function(t){
+    var b=el("button","tab",t.t); b.type="button"; b.setAttribute("role","tab");
+    b.setAttribute("aria-selected",S.tab===t.k?"true":"false");
+    b.onclick=function(){S.tab=t.k;render();window.scrollTo({top:0});};
+    tb.appendChild(b);
+  });
+
+  var v=q("view"); v.innerHTML="";
+  if(!configured()){ v.appendChild(setupNeeded()); return; }
+  if(S.err==="lib"){ v.appendChild(errBox("تعذّر تحميل مكتبة قاعدة البيانات. تحقّقي من الاتصال بالإنترنت ثم أعيدي تحميل الصفحة.")); return; }
+  if(S.err==="net"){ v.appendChild(errBox("تعذّر الوصول إلى قاعدة البيانات. تأكدي من صحة الرابط والمفتاح في ملف config.js، ومن تشغيل ملف schema.sql.")); return; }
+  if(!S.ready){ v.appendChild(el("div","empty","جارِ التحميل…")); return; }
+  ({board:viewBoard,mine:viewMine,groups:viewGroups,timeline:viewTimeline,feed:viewFeed,scores:viewScores,setup:viewSetup}[S.tab]||viewBoard)(v);
+}
+function errBox(msg){ var d=el("div","banner bad",msg); return d; }
+function setupNeeded(){
+  var d=el("div","sec");
+  d.innerHTML='<h2>لم تُربط قاعدة البيانات بعد</h2><div class="hint">خطوتان فقط:</div>'+
+    '<ol style="font-size:13.5px;line-height:1.9;padding-inline-start:20px">'+
+    '<li>أنشئي مشروعاً مجانياً في <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a>، ثم شغّلي محتوى الملف <code class="k">supabase/schema.sql</code> في SQL Editor.</li>'+
+    '<li>انسخي <code class="k">Project URL</code> و <code class="k">anon key</code> من Project Settings ← Data API، وضعيهما في ملف <code class="k">config.js</code>.</li>'+
+    '</ol><div class="hint" style="margin-top:10px">التفاصيل كاملة في ملف <code class="k">README.md</code>.</div>';
+  return d;
+}
+
+/* ---------------------------- اللوحة ---------------------------- */
+function statStrip(host){
+  var M=S.milestones, gs=S.groups;
+  var late=0,appr=0,cells=gs.length*M.length,ideas=0;
+  gs.forEach(function(g){
+    late+=gLate(g.id);
+    M.forEach(function(m){ if(cellState(g.id,m.id)==="approved") appr++; });
+    if(M[0]){ var s=cellState(g.id,M[0].id); if(s==="approved"||s==="submitted") ideas++; }
+  });
+  var pct=cells?Math.round(appr/cells*100):0, nm=nextMilestone();
+  var s=el("div","strip");
+  s.innerHTML=
+    '<div class="stat"><div class="k">المجموعات</div><div class="v num">'+gs.length+'</div><div class="n">'+(gs.length*5)+' طالبة</div></div>'+
+    '<div class="stat"><div class="k">أفكار مُستلمة</div><div class="v"><span class="num">'+ideas+'</span> من <span class="num">'+gs.length+'</span></div><div class="n">'+esc(M[0]?M[0].name:"—")+'</div></div>'+
+    '<div class="stat '+(late?"alert":"")+'"><div class="k">تسليمات متأخرة</div><div class="v num">'+late+'</div><div class="n">'+(late?"تحتاج متابعة":"لا يوجد تأخير")+'</div></div>'+
+    '<div class="stat focus"><div class="k">الموعد القادم</div><div class="v" style="font-size:16px;line-height:1.35">'+esc(nm?nm.name:"—")+'</div><div class="n num">'+(nm?dayName(nm.due)+" · "+relText(nm.due):"")+'</div></div>'+
+    '<div class="stat"><div class="k">مراحل معتمدة</div><div class="v num">'+pct+'%</div><div class="n">من إجمالي المراحل</div></div>';
+  host.appendChild(s);
+}
+function viewBoard(host){
+  statStrip(host);
+  if(S.role==="teacher"){
+    var bar=el("div","row"); bar.style.margin="0 0 12px";
+    bar.appendChild(btn("+ إضافة مجموعة","primary sm",openNewGroup));
+    host.appendChild(bar);
+  }
+  if(!S.groups.length){ host.appendChild(el("div","empty sec","لا توجد مجموعات بعد.")); return; }
+
+  var M=S.milestones;
+  var sc=el("div","scroller"), t=el("table","board");
+  var thead=el("thead"), tr=el("tr");
+  var h0=el("th","gcell","المجموعة"); tr.appendChild(h0);
+  M.forEach(function(m){
+    var h=el("th");
+    h.innerHTML='<span>'+esc(m.name)+'</span><span class="due num">'+esc(fmtDay.format(parseD(m.due)))+'</span><span class="w num">'+(+m.weight)+' د</span>';
+    tr.appendChild(h);
+  });
+  thead.appendChild(tr); t.appendChild(thead);
+
+  var tb=el("tbody");
+  S.groups.forEach(function(g){
+    var r=el("tr"), gc=el("td","gcell");
+    var nb=el("button","gname",g.name); nb.type="button";
+    nb.onclick=function(){ openGroupDetail(g); };
+    gc.appendChild(nb);
+    var meta=el("div","gmeta",(g.idea&&g.idea.title)?g.idea.title:"لم تُحدَّد الفكرة بعد"); gc.appendChild(meta);
+    var bar=el("div","bar"), fi=el("i"); fi.style.width=(M.length?Math.round(gDone(g.id)/M.length*100):0)+"%";
+    bar.appendChild(fi); gc.appendChild(bar); r.appendChild(gc);
+
+    M.forEach(function(m){
+      var td=el("td","cellwrap"), st=cellState(g.id,m.id), p=P(g.id,m.id), ev=E(g.id,m.id);
+      var canEdit = S.role==="teacher" || (S.role==="group" && S.myGroup && S.myGroup.id===g.id);
+      var b=el("button","cell"+(canEdit?" act":"")); b.type="button"; b.setAttribute("data-s",st);
+      if(isLate(g.id,m)) b.setAttribute("data-late","1");
+      var html='<span class="lab">'+esc(ST[st])+'</span>';
+      if(S.role==="teacher"&&typeof ev.score==="number") html+='<span class="sc num">'+ev.score+' من '+(+m.weight)+'</span>';
+      if(p.note) html+='<span class="note">'+esc(p.note)+'</span>';
+      b.innerHTML=html;
+      if(canEdit) b.onclick=function(e){ S.role==="teacher"?openTeacherCell(e.currentTarget,g,m):openStudentCell(e.currentTarget,g,m); };
+      else b.disabled=true;
+      td.appendChild(b); r.appendChild(td);
+    });
+    tb.appendChild(r);
+  });
+  t.appendChild(tb); sc.appendChild(t); host.appendChild(sc);
+
+  var lg=el("div","legend");
+  var cols={none:["var(--surface-2)","var(--line)"],wip:["var(--signal-soft)","var(--signal)"],submitted:["var(--go-soft)","var(--go)"],approved:["var(--ok-soft)","var(--ok)"],blocked:["var(--late-soft)","var(--late)"]};
+  lg.innerHTML=["none","wip","submitted","approved","blocked"].map(function(k){
+    return '<span><i class="dot" style="background:'+cols[k][0]+';border-color:'+cols[k][1]+'"></i>'+ST[k]+'</span>';
+  }).join("")+'<span><i class="dot" style="background:var(--surface-2);box-shadow:inset 3px 0 0 var(--late)"></i>تجاوزت الموعد</span>';
+  host.appendChild(lg);
+
+  if(S.role==="public"){
+    var b2=el("div","banner","للتحديث: اضغطي «دخول المجموعة» أعلى الصفحة وأدخلي رمز مجموعتك.");
+    host.appendChild(b2);
+  }
+}
+
+/* ------------------- نافذة تحديث المرحلة (الطالبات) ------------------- */
+function popAt(anchor,pop){
+  q("layer").appendChild(pop);
+  var r=anchor.getBoundingClientRect(), pr=pop.getBoundingClientRect();
+  pop.style.top=Math.min(Math.max(8,r.bottom+6),window.innerHeight-pr.height-8)+"px";
+  pop.style.left=Math.min(Math.max(16,r.left+r.width/2-pr.width/2),window.innerWidth-pr.width-16)+"px";
+}
+function openStudentCell(anchor,g,m){
+  closeLayer();
+  var p=P(g.id,m.id), cur=p.status;
+  if(p.approved){ toast("هذه المرحلة اعتمدتها المشرفة ولا يمكن تعديلها"); return; }
+  var veil=el("div","veil"); veil.style.background="transparent"; veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var pop=el("div","pop");
+  pop.innerHTML=
+    '<div class="ttl"><strong>'+esc(m.name)+'</strong><br>الموعد: <span class="num">'+esc(dayName(m.due))+'</span> · '+esc(relText(m.due))+'</div>'+
+    '<div class="statuses"></div>'+
+    '<label class="f" for="sNote">ماذا أنجزتن؟</label>'+
+    '<textarea class="t" id="sNote" rows="2" placeholder="مثال: أنهينا الاستبيان وحصلنا على ٤٠ رد">'+esc(p.note||"")+'</textarea>'+
+    '<div style="margin-top:9px"><label class="f" for="sEv">رابط الإثبات (اختياري)</label>'+
+    '<input class="t" id="sEv" value="'+esc(p.evidence_url||"")+'" placeholder="https://"></div>'+
+    '<div class="row" style="margin-top:11px;justify-content:flex-end"></div>';
+  var sw=pop.querySelector(".statuses");
+  STATUSES.forEach(function(s){
+    var b=el("button","st",s.t); b.type="button"; b.setAttribute("data-s",s.k);
+    b.setAttribute("aria-pressed",cur===s.k?"true":"false");
+    b.onclick=function(){ cur=s.k; sw.querySelectorAll(".st").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-s")===cur?"true":"false");}); };
+    sw.appendChild(b);
+  });
+  var acts=pop.querySelector(".row");
+  acts.appendChild(btn("إلغاء","sm",closeLayer));
+  var save=btn("حفظ","primary sm",async function(){
+    save.disabled=true;
+    try{
+      var r=await sb.rpc("student_set_progress",{
+        p_code:S.myCode,p_milestone:m.id,p_status:cur,
+        p_note:pop.querySelector("#sNote").value.trim(),
+        p_evidence:pop.querySelector("#sEv").value.trim(),
+        p_actor:S.actor});
+      if(r.error) throw r.error;
+      closeLayer(); toast("تم الحفظ"); await loadAll();
+    }catch(e){ save.disabled=false; toast("تعذّر الحفظ: "+(e.message||"")); }
+  });
+  acts.appendChild(save);
+  popAt(anchor,pop);
+  pop.querySelector("#sNote").focus();
+}
+
+/* ------------------- نافذة الاعتماد والدرجة (المشرفة) ------------------- */
+function openTeacherCell(anchor,g,m){
+  closeLayer();
+  var p=P(g.id,m.id), ev=E(g.id,m.id), appr=!!p.approved;
+  var veil=el("div","veil"); veil.style.background="transparent"; veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var pop=el("div","pop");
+  pop.innerHTML=
+    '<div class="ttl"><strong>'+esc(g.name)+'</strong> — '+esc(m.name)+'<br>حالة المجموعة: '+esc(ST[p.status])+
+      (p.note?'<br>«'+esc(p.note)+'»':'')+
+      (p.evidence_url?'<br><a href="'+esc(p.evidence_url)+'" target="_blank" rel="noopener">فتح رابط الإثبات</a>':'')+'</div>'+
+    '<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin-bottom:10px">'+
+      '<input type="checkbox" id="tApp"'+(appr?" checked":"")+'> اعتماد المرحلة</label>'+
+    '<label class="f" for="tScore">الدرجة (من '+(+m.weight)+')</label>'+
+    '<input class="t num" id="tScore" type="number" min="0" max="'+(+m.weight)+'" step="0.25" value="'+(typeof ev.score==="number"?ev.score:"")+'" placeholder="اتركيها فارغة إن لم تُقيَّم">'+
+    '<div style="margin-top:9px"><label class="f" for="tNote">ملاحظة للمشرفة (غير ظاهرة للطالبات)</label>'+
+    '<textarea class="t" id="tNote" rows="2">'+esc(ev.teacher_note||"")+'</textarea></div>'+
+    '<div class="row" style="margin-top:11px;justify-content:flex-end"></div>';
+  var acts=pop.querySelector(".row");
+  acts.appendChild(btn("إلغاء","sm",closeLayer));
+  var save=btn("حفظ","primary sm",async function(){
+    save.disabled=true;
+    try{
+      var on=pop.querySelector("#tApp").checked;
+      var raw=pop.querySelector("#tScore").value;
+      var score=raw===""?null:Math.max(0,Math.min(+m.weight,parseFloat(raw)||0));
+      var r1=await sb.from("progress").upsert({
+        group_id:g.id,milestone_id:m.id,
+        status:p.status==="none"&&on?"submitted":p.status,
+        note:p.note||"",evidence_url:p.evidence_url||"",
+        approved:on,approved_at:on?new Date().toISOString():null,updated_at:new Date().toISOString()
+      },{onConflict:"group_id,milestone_id"});
+      if(r1.error) throw r1.error;
+      var r2=await sb.from("evaluations").upsert({
+        group_id:g.id,milestone_id:m.id,score:score,
+        teacher_note:pop.querySelector("#tNote").value.trim(),updated_at:new Date().toISOString()
+      },{onConflict:"group_id,milestone_id"});
+      if(r2.error) throw r2.error;
+      await sb.from("activity_log").insert({group_id:g.id,actor:"المشرفة",
+        action:(on?"اعتماد":"مراجعة")+" مرحلة: "+m.name, detail:score!=null?("الدرجة: "+score):""});
+      closeLayer(); toast("تم الحفظ"); await loadAll();
+    }catch(e){ save.disabled=false; toast("تعذّر الحفظ: "+(e.message||"")); }
+  });
+  acts.appendChild(save);
+  popAt(anchor,pop);
+}
+
+/* ---------------------------- مجموعتي ---------------------------- */
+function viewMine(host){
+  var g=S.groups.filter(function(x){return S.myGroup&&x.id===S.myGroup.id;})[0]||S.myGroup;
+  if(!g){ host.appendChild(el("div","empty","لم يتم التعرف على المجموعة.")); return; }
+  var idea=g.idea||{}, links=g.links||{}, mem=(g.members||[]).concat(["","","","",""]).slice(0,5);
+
+  var head=el("div","sec");
+  head.innerHTML='<h2>'+esc(g.name)+'</h2><div class="hint">حدّثن حالة كل مرحلة فور إنجازها — المشرفة ترى التحديث فوراً.</div>';
+  host.appendChild(head);
+
+  var a=el("div","sec");
+  a.innerHTML='<h2>بطاقة المشروع</h2><div class="hint">الأسئلة الأربعة المطلوبة عند اختيار الفكرة.</div>'+
+    '<label class="f" for="iT">عنوان المشروع</label><input class="t" id="iT" value="'+esc(idea.title||"")+'" placeholder="مثال: منصة ذكية لجدولة شحنات الميل الأخير">'+
+    '<div style="margin-top:10px"><label class="f" for="iP">ما المشكلة التي نحلها؟</label><textarea class="t" id="iP">'+esc(idea.problem||"")+'</textarea></div>'+
+    '<div style="margin-top:10px"><label class="f" for="iA">من الفئة المستهدفة؟</label><textarea class="t" id="iA">'+esc(idea.audience||"")+'</textarea></div>'+
+    '<div style="margin-top:10px"><label class="f" for="iS">ما الحل المقترح؟</label><textarea class="t" id="iS">'+esc(idea.solution||"")+'</textarea></div>'+
+    '<div style="margin-top:10px"><label class="f" for="iV">ما القيمة التي يقدمها المشروع؟</label><textarea class="t" id="iV">'+esc(idea.value||"")+'</textarea></div>'+
+    '<div style="margin-top:14px"><label class="f">أعضاء الفريق (٥ طالبات — الأولى قائدة الفريق)</label>'+
+      mem.map(function(x,i){return '<input class="t" id="mm'+i+'" style="margin-bottom:6px" placeholder="'+(i===0?"قائدة الفريق":"الطالبة "+(i+1))+'" value="'+esc(x)+'">';}).join("")+'</div>'+
+    '<div class="fields" style="margin-top:12px">'+
+      '<div><label class="f" for="lP">رابط النموذج / تطبيق الويب</label><input class="t" id="lP" value="'+esc(links.prototype||"")+'" placeholder="https://"></div>'+
+      '<div><label class="f" for="lR">المستودع أو ملف الأوامر</label><input class="t" id="lR" value="'+esc(links.repo||"")+'" placeholder="https://"></div>'+
+      '<div><label class="f" for="lO">البوستر</label><input class="t" id="lO" value="'+esc(links.poster||"")+'" placeholder="https://"></div>'+
+    '</div>'+
+    '<div style="margin-top:12px"><label class="f" for="aiT">أدوات الذكاء الاصطناعي التي استخدمناها وكيف</label>'+
+    '<textarea class="t" id="aiT" rows="3" placeholder="مثال: استخدمنا Claude لكتابة كود الواجهة، و Figma AI للتصميم…">'+esc(g.ai_tools||"")+'</textarea></div>';
+  var ar=el("div","row"); ar.style.marginTop="12px";
+  var sv=btn("حفظ بطاقة المشروع","primary",async function(){
+    sv.disabled=true;
+    try{
+      var r=await sb.rpc("student_set_profile",{
+        p_code:S.myCode,
+        p_members:[0,1,2,3,4].map(function(i){return q("mm"+i).value.trim();}).filter(function(x){return x;}),
+        p_idea:{title:q("iT").value.trim(),problem:q("iP").value.trim(),audience:q("iA").value.trim(),solution:q("iS").value.trim(),value:q("iV").value.trim()},
+        p_links:{prototype:q("lP").value.trim(),repo:q("lR").value.trim(),poster:q("lO").value.trim()},
+        p_ai_tools:q("aiT").value.trim(),
+        p_actor:S.actor});
+      if(r.error) throw r.error;
+      toast("تم الحفظ"); await loadAll();
+    }catch(e){ toast("تعذّر الحفظ: "+(e.message||"")); }
+    sv.disabled=false;
+  });
+  ar.appendChild(sv); a.appendChild(ar); host.appendChild(a);
+
+  var b=el("div","sec");
+  b.innerHTML='<h2>المراحل</h2><div class="hint">اضغطن على أي مرحلة لتحديث حالتها وكتابة ما أُنجز.</div>';
+  S.milestones.forEach(function(m){
+    var p=P(g.id,m.id), st=cellState(g.id,m.id);
+    var box=el("div"); box.style.cssText="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:9px;background:var(--surface-2)";
+    box.innerHTML='<div class="row" style="justify-content:space-between;align-items:flex-start">'+
+      '<div><strong style="font-size:14.5px">'+esc(m.name)+'</strong>'+
+      '<div style="font-size:12px;color:var(--ink-3)" class="num">'+esc(dayName(m.due))+' · '+esc(relText(m.due))+'</div></div>'+
+      '<span class="chip '+(st==="approved"?"ok":st==="submitted"?"go":st==="blocked"?"late":st==="wip"?"sig":"")+'">'+esc(ST[st])+'</span></div>'+
+      '<ul style="margin:8px 0 0;padding-inline-start:18px;font-size:12.5px;color:var(--ink-2)">'+
+      (m.items||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'+
+      (p.note?'<div style="font-size:12.5px;margin-top:7px">آخر تحديث: '+esc(p.note)+'</div>':'');
+    var rr=el("div","row"); rr.style.marginTop="9px";
+    rr.appendChild(btn(p.approved?"معتمدة — للاطلاع":"تحديث الحالة","sm",function(ev){ openStudentCell(ev.currentTarget,g,m); }));
+    box.appendChild(rr); b.appendChild(box);
+  });
+  host.appendChild(b);
+}
+
+/* ---------------------------- المجموعات ---------------------------- */
+function viewGroups(host){
+  if(S.role==="teacher"){
+    var bar=el("div","row"); bar.style.margin="18px 0 14px";
+    bar.appendChild(btn("+ إضافة مجموعة","primary sm",openNewGroup));
+    host.appendChild(bar);
+  }else{ host.appendChild(el("div",null," ")); }
+  if(!S.groups.length){ host.appendChild(el("div","empty sec","لا توجد مجموعات بعد.")); return; }
+  var wrap=el("div","cards");
+  S.groups.forEach(function(g){
+    var late=gLate(g.id), sc=gScore(g.id), idea=g.idea||{}, M=S.milestones;
+    var c=el("div","card"+(late?" risk":""));
+    c.innerHTML='<h3>'+esc(g.name)+'</h3>'+
+      '<div style="font-size:13.5px;color:var(--ink-2)">'+esc(idea.title||"الفكرة لم تُسجَّل بعد")+'</div>'+
+      '<div class="chiprow">'+
+        '<span class="chip '+(M.length&&gDone(g.id)===M.length?"ok":"")+'">'+gDone(g.id)+' من '+M.length+' مراحل</span>'+
+        (late?'<span class="chip late">'+late+' متأخرة</span>':'')+
+        (S.role==="teacher"&&sc!==null?'<span class="chip sig num">'+sc+' من '+(S.settings.totalMarks||7)+'</span>':'')+
+        '<span class="chip">'+((g.members||[]).filter(Boolean).length)+' أعضاء</span>'+
+      '</div>'+
+      '<div class="canvas">'+
+        '<div><div class="k">المشكلة</div><div class="v">'+esc(idea.problem||"—")+'</div></div>'+
+        '<div><div class="k">الفئة المستهدفة</div><div class="v">'+esc(idea.audience||"—")+'</div></div>'+
+        '<div><div class="k">الحل المقترح</div><div class="v">'+esc(idea.solution||"—")+'</div></div>'+
+        '<div><div class="k">القيمة المضافة</div><div class="v">'+esc(idea.value||"—")+'</div></div>'+
+      '</div>'+
+      '<div class="members">'+esc((g.members||[]).filter(Boolean).join(" · ")||"لم تُسجَّل الأسماء")+'</div>';
+    var row=el("div","row");
+    row.appendChild(btn("التفاصيل","sm",function(){ openGroupDetail(g); }));
+    if(g.links&&g.links.prototype){
+      var a=el("a","btn sm","فتح النموذج"); a.href=g.links.prototype; a.target="_blank"; a.rel="noopener"; row.appendChild(a);
+    }
+    if(S.role==="teacher") row.appendChild(btn("تحرير","sm",function(){ openEditGroup(g); }));
+    c.appendChild(row); wrap.appendChild(c);
+  });
+  host.appendChild(wrap);
+}
+function openGroupDetail(g){
+  closeLayer();
+  var veil=el("div","veil"); veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var d=el("div","drawer"); d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true");
+  var idea=g.idea||{}, links=g.links||{};
+  var rows=S.milestones.map(function(m){
+    var p=P(g.id,m.id), st=cellState(g.id,m.id);
+    return '<tr><td>'+esc(m.name)+'</td><td>'+esc(ST[st])+'</td><td style="font-size:12.5px;color:var(--ink-3)">'+esc(p.note||"—")+'</td></tr>';
+  }).join("");
+  d.innerHTML='<h2>'+esc(g.name)+'</h2>'+
+    '<div class="sec"><h2>الفكرة</h2><div style="font-size:14px;font-weight:600">'+esc(idea.title||"—")+'</div>'+
+      '<div class="canvas" style="margin-top:9px">'+
+      '<div><div class="k">المشكلة</div><div class="v">'+esc(idea.problem||"—")+'</div></div>'+
+      '<div><div class="k">الفئة المستهدفة</div><div class="v">'+esc(idea.audience||"—")+'</div></div>'+
+      '<div><div class="k">الحل</div><div class="v">'+esc(idea.solution||"—")+'</div></div>'+
+      '<div><div class="k">القيمة</div><div class="v">'+esc(idea.value||"—")+'</div></div></div>'+
+      '<div style="margin-top:10px;font-size:13px"><strong>أدوات الذكاء الاصطناعي:</strong> '+esc(g.ai_tools||"—")+'</div>'+
+      '<div class="members" style="margin-top:8px">'+esc((g.members||[]).filter(Boolean).join(" · ")||"لم تُسجَّل الأسماء")+'</div>'+
+      (links.prototype?'<div style="margin-top:8px"><a href="'+esc(links.prototype)+'" target="_blank" rel="noopener">النموذج</a></div>':'')+
+      (links.poster?'<div><a href="'+esc(links.poster)+'" target="_blank" rel="noopener">البوستر</a></div>':'')+
+      (links.repo?'<div><a href="'+esc(links.repo)+'" target="_blank" rel="noopener">المستودع</a></div>':'')+
+    '</div>'+
+    '<div class="sec"><h2>المراحل</h2><table class="grid"><thead><tr><th>المرحلة</th><th>الحالة</th><th>آخر تحديث</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="row" style="justify-content:flex-end"></div>';
+  d.querySelector(".row:last-child").appendChild(btn("إغلاق","",closeLayer));
+  q("layer").appendChild(d);
+}
+
+/* ------------------- إدارة المجموعات (المشرفة) ------------------- */
+function randCode(){
+  var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", s="";
+  for(var i=0;i<4;i++) s+=a[Math.floor(Math.random()*a.length)];
+  return "VC-"+s;
+}
+function openNewGroup(){ openEditGroup(null); }
+function openEditGroup(g){
+  closeLayer();
+  var isNew=!g;
+  var veil=el("div","veil"); veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var d=el("div","modal");
+  d.innerHTML='<h2>'+(isNew?"مجموعة جديدة":"تحرير المجموعة")+'</h2>'+
+    '<label class="f" for="gN">اسم المجموعة</label><input class="t" id="gN" value="'+esc(g?g.name:("المجموعة "+(S.groups.length+1)))+'">'+
+    (isNew?'<div style="margin-top:10px"><label class="f" for="gC">رمز الدخول للطالبات</label><input class="t num" id="gC" value="'+randCode()+'"></div>':'')+
+    '<div style="margin-top:10px"><label class="f" for="gO">الترتيب</label><input class="t num" id="gO" type="number" value="'+(g?g.ord:(S.groups.length+1))+'"></div>'+
+    '<div class="row" style="margin-top:14px;justify-content:space-between"></div>';
+  var row=d.querySelector(".row");
+  if(!isNew) row.appendChild(btn("حذف","danger sm",async function(){
+    if(!confirm("حذف «"+g.name+"» وكل بياناتها نهائياً؟")) return;
+    await sb.from("groups").delete().eq("id",g.id); closeLayer(); toast("تم الحذف"); loadAll();
+  }));
+  var right=el("div","row");
+  right.appendChild(btn("إلغاء","",closeLayer));
+  right.appendChild(btn("حفظ","primary",async function(){
+    var payload={name:q("gN").value.trim()||"مجموعة",ord:parseInt(q("gO").value,10)||0,updated_at:new Date().toISOString()};
+    var r;
+    if(isNew){ payload.code=(q("gC").value.trim()||randCode()).toUpperCase(); r=await sb.from("groups").insert(payload); }
+    else r=await sb.from("groups").update(payload).eq("id",g.id);
+    if(r.error){ toast("تعذّر الحفظ: "+r.error.message); return; }
+    closeLayer(); toast("تم الحفظ"); loadAll();
+  }));
+  row.appendChild(right);
+  q("layer").appendChild(d);
+  q("gN").focus();
+}
+
+/* ---------------------------- الخط الزمني ---------------------------- */
+function viewTimeline(host){
+  var head=el("div","sec");
+  head.innerHTML='<h2>خطة الفعالية ومواعيد التسليم</h2><div class="hint">صفحة جاهزة للطباعة أو الحفظ PDF ومشاركتها مع الطالبات.</div>';
+  head.appendChild(btn("طباعة / حفظ PDF","sm",function(){window.print();}));
+  host.appendChild(head);
+
+  var gs=S.groups, sec=el("div","sec");
+  S.milestones.forEach(function(m){
+    var subs=gs.filter(function(g){var s=cellState(g.id,m.id);return s==="submitted"||s==="approved";}).length;
+    var pct=gs.length?Math.round(subs/gs.length*100):0, d=daysTo(m.due);
+    var it=el("div","tl-item");
+    it.innerHTML='<div class="tl-date">'+esc(dayName(m.due))+'<span class="rel'+(d<0?" now":"")+'">'+esc(relText(m.due))+'</span></div>'+
+      '<div class="tl-body"><h3>'+esc(m.name)+' <span class="chip num">'+(+m.weight)+' درجة</span></h3>'+
+      '<div class="desc">'+esc(m.description||"")+'</div>'+
+      '<ul>'+(m.items||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'+
+      (gs.length?'<div class="mini"><i style="width:'+pct+'%"></i></div><div class="cnt num">'+subs+' من '+gs.length+' مجموعات سلّمت</div>':'')+
+      '</div>';
+    sec.appendChild(it);
+  });
+  host.appendChild(sec);
+
+  var tot=S.milestones.reduce(function(a,m){return a+(+m.weight||0);},0);
+  var f=el("div","sec");
+  f.innerHTML='<h2>توزيع الدرجات</h2><div class="hint">مجموع المراحل <span class="num">'+(Math.round(tot*100)/100)+'</span> من <span class="num">'+(S.settings.totalMarks||7)+'</span> درجات مخصصة للفعالية.</div>'+
+    (Math.abs(tot-(S.settings.totalMarks||7))>0.001?'<div class="banner" style="margin:0">مجموع أوزان المراحل لا يساوي الدرجة الكلية — عدّليه من الإعدادات.</div>':'');
+  host.appendChild(f);
+}
+
+/* ---------------------------- سجل الخطوات ---------------------------- */
+function viewFeed(host){
+  var s=el("div","sec");
+  s.innerHTML='<h2>سجل الخطوات</h2><div class="hint">كل تحديث تسجّله المجموعات يظهر هنا — آخر ٨٠ خطوة.</div>';
+  if(!S.log.length){ s.appendChild(el("div","empty","لا توجد تحديثات بعد.")); host.appendChild(s); return; }
+  var names={}; S.groups.forEach(function(g){names[g.id]=g.name;});
+  var feed=el("div","feed");
+  S.log.forEach(function(e){
+    var it=el("div","ev");
+    it.innerHTML='<div class="when">'+esc(fmtTime.format(new Date(e.created_at)))+'</div>'+
+      '<div><div class="what">'+esc(e.action)+(e.detail?' — <span style="color:var(--ink-3)">'+esc(e.detail)+'</span>':'')+'</div>'+
+      '<div class="who">'+esc(names[e.group_id]||"—")+' · '+esc(e.actor||"")+'</div></div>';
+    feed.appendChild(it);
+  });
+  s.appendChild(feed); host.appendChild(s);
+}
+
+/* ---------------------------- الدرجات ---------------------------- */
+function viewScores(host){
+  var M=S.milestones, gs=S.groups, s=el("div","sec");
+  s.innerHTML='<h2>سجل الدرجات</h2><div class="hint">الخلايا غير المقيّمة تُحسب صفراً في المجموع.</div>';
+  var row=el("div","row"); row.style.marginBottom="12px";
+  row.appendChild(btn("تصدير CSV","sm",exportCsv));
+  row.appendChild(btn("طباعة","sm",function(){window.print();}));
+  s.appendChild(row);
+  if(!gs.length){ s.appendChild(el("div","empty","لا توجد مجموعات.")); host.appendChild(s); return; }
+  var sc=el("div","scroller"); sc.style.boxShadow="none";
+  var t=el("table","grid"); t.style.minWidth="720px";
+  t.innerHTML='<thead><tr><th>المجموعة</th>'+M.map(function(m){return '<th>'+esc(m.name)+'<br><span class="num" style="font-weight:400;color:var(--ink-3)">من '+(+m.weight)+'</span></th>';}).join("")+'<th>المجموع</th></tr></thead>';
+  var tb=el("tbody");
+  gs.forEach(function(g){
+    var tot=0;
+    var tds=M.map(function(m){var e=E(g.id,m.id); if(typeof e.score==="number"){tot+=e.score;return '<td class="num">'+e.score+'</td>';} return '<td style="color:var(--ink-3)">—</td>';}).join("");
+    tb.innerHTML+='<tr><td>'+esc(g.name)+'</td>'+tds+'<td class="tot num">'+(Math.round(tot*100)/100)+' من '+(S.settings.totalMarks||7)+'</td></tr>';
+  });
+  t.appendChild(tb); sc.appendChild(t); s.appendChild(sc); host.appendChild(s);
+}
+function exportCsv(){
+  var M=S.milestones, rows=[];
+  rows.push(["المجموعة"].concat(M.map(function(m){return m.name+" (من "+(+m.weight)+")";})).concat(["المجموع","الأعضاء","الفكرة"]));
+  S.groups.forEach(function(g){
+    var tot=0;
+    var cells=M.map(function(m){var e=E(g.id,m.id); if(typeof e.score==="number"){tot+=e.score;return String(e.score);} return "";});
+    rows.push([g.name].concat(cells).concat([String(Math.round(tot*100)/100),(g.members||[]).filter(Boolean).join(" / "),(g.idea&&g.idea.title)||""]));
+  });
+  var text="﻿"+rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\r\n");
+  var blob=new Blob([text],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="vibe-coding-scores.csv"; document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);
+}
+
+/* ---------------------------- الإعدادات ---------------------------- */
+function viewSetup(host){
+  var a=el("div","sec");
+  a.innerHTML='<h2>بيانات الفعالية</h2><div class="hint">تظهر في أعلى الصفحة وفي النسخة المطبوعة.</div>'+
+    '<div class="fields">'+
+    '<div><label class="f" for="cT">العنوان</label><input class="t" id="cT" value="'+esc(S.settings.title||"")+'"></div>'+
+    '<div><label class="f" for="cC">المقرر / الفعالية</label><input class="t" id="cC" value="'+esc(S.settings.course||"")+'"></div>'+
+    '<div><label class="f" for="cO">الجهة</label><input class="t" id="cO" value="'+esc(S.settings.org||"")+'"></div>'+
+    '<div><label class="f" for="cM">الدرجة الكلية</label><input class="t num" id="cM" type="number" min="1" step="0.5" value="'+(S.settings.totalMarks||7)+'"></div>'+
+    '</div>';
+  var ar=el("div","row"); ar.style.marginTop="11px";
+  ar.appendChild(btn("حفظ","primary sm",async function(){
+    var v={title:q("cT").value.trim(),course:q("cC").value.trim(),org:q("cO").value.trim(),totalMarks:parseFloat(q("cM").value)||7};
+    var r=await sb.from("settings").upsert({key:"activity",value:v},{onConflict:"key"});
+    if(r.error){toast("تعذّر الحفظ: "+r.error.message);return;}
+    toast("تم الحفظ"); loadAll();
+  }));
+  a.appendChild(ar); host.appendChild(a);
+
+  var g=el("div","sec");
+  g.innerHTML='<h2>المراحل والمواعيد</h2><div class="hint">عدّلي التواريخ لتوافق تقويم الفصل، والأوزان بحيث يساوي مجموعها الدرجة الكلية.</div>';
+  S.milestones.forEach(function(m,i){
+    var box=el("div");
+    box.style.cssText="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface-2)";
+    box.innerHTML='<div class="fields">'+
+      '<div style="grid-column:1/-1"><label class="f" for="sn'+i+'">اسم المرحلة</label><input class="t" id="sn'+i+'" value="'+esc(m.name)+'"></div>'+
+      '<div><label class="f" for="sd'+i+'">الموعد</label><input class="t num" id="sd'+i+'" type="date" value="'+esc(m.due_date)+'"></div>'+
+      '<div><label class="f" for="sw'+i+'">الدرجة</label><input class="t num" id="sw'+i+'" type="number" min="0" step="0.25" value="'+(+m.weight)+'"></div></div>'+
+      '<div style="margin-top:9px"><label class="f" for="sx'+i+'">الوصف</label><input class="t" id="sx'+i+'" value="'+esc(m.description||"")+'"></div>'+
+      '<div style="margin-top:9px"><label class="f" for="si'+i+'">المطلوب تسليمه (سطر لكل بند)</label><textarea class="t" id="si'+i+'" rows="3">'+esc((m.items||[]).join("\n"))+'</textarea></div>';
+    g.appendChild(box);
+  });
+  var gr=el("div","row");
+  gr.appendChild(btn("حفظ المراحل","primary sm",async function(){
+    for(var i=0;i<S.milestones.length;i++){
+      var m=S.milestones[i];
+      var r=await sb.from("milestones").update({
+        name:q("sn"+i).value.trim()||m.name,
+        due_date:q("sd"+i).value||m.due_date,
+        weight:parseFloat(q("sw"+i).value)||0,
+        description:q("sx"+i).value.trim(),
+        items:q("si"+i).value.split("\n").map(function(s){return s.trim();}).filter(Boolean)
+      }).eq("id",m.id);
+      if(r.error){ toast("تعذّر الحفظ: "+r.error.message); return; }
+    }
+    toast("تم حفظ المراحل"); loadAll();
+  }));
+  g.appendChild(gr); host.appendChild(g);
+
+  var c=el("div","sec");
+  c.innerHTML='<h2>رموز دخول المجموعات</h2><div class="hint">أرسلي لكل مجموعة رمزها — به تدخل الطالبات وتحدّثن تقدمهن دون حساب.</div>';
+  var lst=el("div"); lst.innerHTML='<div class="empty" style="padding:14px">جارِ التحميل…</div>';
+  c.appendChild(lst);
+  var cr=el("div","row"); cr.style.marginTop="10px";
+  cr.appendChild(btn("+ إضافة مجموعة","sm",openNewGroup));
+  c.appendChild(cr); host.appendChild(c);
+  sb.from("groups").select("id,name,code,ord").order("ord").then(function(r){
+    if(r.error){ lst.innerHTML='<div class="banner bad">تعذّر قراءة الرموز.</div>'; return; }
+    var t=el("table","grid");
+    t.innerHTML='<thead><tr><th>المجموعة</th><th>الرمز</th></tr></thead><tbody>'+
+      (r.data||[]).map(function(x){return '<tr><td>'+esc(x.name)+'</td><td class="num"><code class="k">'+esc(x.code)+'</code></td></tr>';}).join("")+'</tbody>';
+    lst.innerHTML=""; lst.appendChild(t);
+  });
+}
+
+/* ---------------------------- تسجيل الدخول ---------------------------- */
+function openGroupLogin(){
+  closeLayer();
+  var ses=readSession();
+  var veil=el("div","veil"); veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var d=el("div","modal");
+  d.innerHTML='<h2>دخول المجموعة</h2><div class="hint" style="font-size:12.5px;color:var(--ink-3);margin-bottom:12px">أدخلي رمز مجموعتك الذي أرسلته المشرفة.</div>'+
+    '<label class="f" for="gc">رمز المجموعة</label><input class="t num" id="gc" placeholder="VC-XXXX" value="'+esc(ses.code||"")+'" autocomplete="off">'+
+    '<div style="margin-top:10px"><label class="f" for="gn">اسمك (يظهر في سجل الخطوات)</label><input class="t" id="gn" value="'+esc(ses.actor||"")+'"></div>'+
+    '<div id="ge"></div><div class="row" style="margin-top:14px;justify-content:flex-end"></div>';
+  var row=d.querySelector(".row");
+  row.appendChild(btn("إلغاء","",closeLayer));
+  var ok=btn("دخول","primary",async function(){
+    ok.disabled=true;
+    try{ await groupSignIn(q("gc").value,q("gn").value); closeLayer(); S.tab="mine"; await loadAll(); toast("أهلاً بكن"); }
+    catch(e){ q("ge").innerHTML='<div class="banner bad" style="margin:10px 0 0">'+esc(e.message||"رمز غير صحيح")+'</div>'; ok.disabled=false; }
+  });
+  row.appendChild(ok);
+  q("layer").appendChild(d); q("gc").focus();
+}
+function openTeacherLogin(){
+  closeLayer();
+  var veil=el("div","veil"); veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var d=el("div","modal");
+  d.innerHTML='<h2>دخول المشرفة</h2><div class="hint" style="font-size:12.5px;color:var(--ink-3);margin-bottom:12px">الحساب الذي أنشأتِه في Supabase → Authentication.</div>'+
+    '<label class="f" for="te">البريد الإلكتروني</label><input class="t" id="te" type="email" autocomplete="username">'+
+    '<div style="margin-top:10px"><label class="f" for="tp">كلمة المرور</label><input class="t" id="tp" type="password" autocomplete="current-password"></div>'+
+    '<div id="tee"></div><div class="row" style="margin-top:14px;justify-content:flex-end"></div>';
+  var row=d.querySelector(".row");
+  row.appendChild(btn("إلغاء","",closeLayer));
+  var ok=btn("دخول","primary",async function(){
+    ok.disabled=true;
+    try{ await teacherSignIn(q("te").value.trim(),q("tp").value); closeLayer(); toast("أهلاً بك"); }
+    catch(e){ q("tee").innerHTML='<div class="banner bad" style="margin:10px 0 0">تعذّر الدخول: '+esc(e.message||"")+'</div>'; ok.disabled=false; }
+  });
+  row.appendChild(ok);
+  d.querySelector("#tp").addEventListener("keydown",function(e){ if(e.key==="Enter") ok.click(); });
+  q("layer").appendChild(d); q("te").focus();
+}
+
+/* ---------------------------- الإقلاع ---------------------------- */
+async function boot(){
+  render();
+  if(!configured()) return;
+  if(!window.supabase||!window.supabase.createClient){
+    await new Promise(function(res){
+      var s=document.createElement("script");
+      s.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
+      s.onload=res; s.onerror=res; document.head.appendChild(s);
+    });
+  }
+  if(!connect()) return;
+  try{
+    var ses=await sb.auth.getSession();
+    if(ses.data&&ses.data.session) S.role="teacher";
+  }catch(e){}
+  if(S.role!=="teacher"){
+    var st=readSession();
+    if(st.code){ try{ await groupSignIn(st.code,st.actor); }catch(e){ try{localStorage.removeItem(LS);}catch(_){} } }
+  }
+  await loadAll();
+  subscribeLive();
+}
+boot();
+})();
+</script>
+</body>
+</html>
