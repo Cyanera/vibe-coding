@@ -200,6 +200,12 @@ textarea.t{resize:vertical;min-height:58px;line-height:1.55}
 .st[data-s="blocked"][aria-pressed="true"]{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
 .st[data-s="none"][aria-pressed="true"]{border-color:var(--line-strong)}
 
+.step{display:grid;grid-template-columns:auto 1fr;gap:12px;border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:10px;background:var(--surface-2)}
+.step .sn{width:26px;height:26px;border-radius:99px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:500}
+.step.done .sn{background:var(--ok);color:#fff}
+.step .sd{font-size:13px;color:var(--ink-2);margin-top:4px;line-height:1.75}
+.step strong{font-size:14.5px}
+.step b{font-weight:600;color:var(--ink)}
 .banner{background:var(--signal-soft);border:1px solid var(--signal);color:var(--signal-ink);border-radius:var(--radius);padding:10px 14px;font-size:13px;margin:14px 0}
 .banner.bad{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
 .banner.good{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
@@ -283,15 +289,82 @@ function gScore(gid){var t=0,any=false;S.milestones.forEach(function(m){var e=E(
 function nextMilestone(){var u=S.milestones.filter(function(m){return daysTo(m.due)>=0;});return u.length?u[0]:S.milestones[S.milestones.length-1];}
 
 /* ============================ الاتصال ============================ */
-function configured(){
+var LSC="vibe-tracker-config";
+function readCfg(){
+  try{ var r=JSON.parse(localStorage.getItem(LSC)||"null"); if(r&&r.url&&r.key) return r; }catch(e){}
   var c=window.TRACKER_CONFIG||{};
-  return !!(c.SUPABASE_URL&&c.SUPABASE_ANON_KEY);
+  if(c.SUPABASE_URL&&c.SUPABASE_ANON_KEY) return {url:c.SUPABASE_URL,key:c.SUPABASE_ANON_KEY,fromFile:true};
+  return null;
 }
+function writeCfg(u,k){ try{ localStorage.setItem(LSC,JSON.stringify({url:u,key:k})); }catch(e){} }
+function configured(){ return !!readCfg(); }
 function connect(){
   if(!window.supabase||!window.supabase.createClient){ S.err="lib"; render(); return false; }
-  var c=window.TRACKER_CONFIG;
-  sb=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_ANON_KEY);
+  var c=readCfg(); if(!c) return false;
+  sb=window.supabase.createClient(c.url,c.key);
   return true;
+}
+async function ensureLib(){
+  if(window.supabase&&window.supabase.createClient) return true;
+  await new Promise(function(res){
+    var t=document.createElement("script");
+    t.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
+    t.onload=res; t.onerror=res; document.head.appendChild(t);
+  });
+  return !!(window.supabase&&window.supabase.createClient);
+}
+
+/* فحص الإعداد — يحدّد بالضبط أين توقّف الأمر */
+async function diagnose(url,key){
+  url=String(url||"").trim().replace(/\/+$/,""); key=String(key||"").trim();
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url))
+    return {ok:false,step:"url",msg:"رابط المشروع غير صحيح. يجب أن يكون بالشكل: https://xxxxxxxx.supabase.co"};
+  if(key.length<30)
+    return {ok:false,step:"key",msg:"المفتاح ناقص — تأكدي من نسخه كاملاً."};
+  if(!(await ensureLib()))
+    return {ok:false,step:"lib",msg:"تعذّر تحميل مكتبة الاتصال. تحقّقي من الإنترنت وأعيدي تحميل الصفحة."};
+  var c;
+  try{ c=window.supabase.createClient(url,key); }
+  catch(e){ return {ok:false,step:"url",msg:"تعذّر إنشاء الاتصال: "+(e.message||"")}; }
+  var r;
+  try{ r=await c.from("milestones").select("id,name").order("ord"); }
+  catch(e){ return {ok:false,step:"net",msg:"لم أصل إلى المشروع. تأكدي أن الرابط صحيح وأن المشروع يعمل وليس متوقفاً (Paused)."}; }
+  if(r.error){
+    var m=(r.error.message||"")+" "+(r.error.code||"")+" "+(r.error.hint||"");
+    if(/JWT|api ?key|Invalid|401|403|unauthor/i.test(m))
+      return {ok:false,step:"key",msg:"المفتاح لا يطابق هذا المشروع. انسخي مفتاح anon / publishable من صفحة API الخاصة بنفس المشروع."};
+    if(/does not exist|42P01|PGRST205|schema cache|Could not find the table/i.test(m))
+      return {ok:false,step:"sql",msg:"الاتصال سليم، لكن الجداول لم تُنشأ بعد. ارجعي للخطوة ١ وشغّلي كود SQL."};
+    return {ok:false,step:"net",msg:"رسالة من قاعدة البيانات: "+(r.error.message||"")};
+  }
+  if(!r.data||!r.data.length)
+    return {ok:false,step:"sql",msg:"الجداول موجودة لكنها فارغة. أعيدي تشغيل كود SQL كاملاً مرة أخرى."};
+  return {ok:true,msg:"الاتصال سليم و"+r.data.length+" مراحل جاهزة."};
+}
+
+/* نسخ نص إلى الحافظة مع بديل يدوي */
+function copyText(text,okMsg){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast(okMsg||"تم النسخ"); },function(){ showText(text); });
+  } else showText(text);
+}
+function showText(text){
+  closeLayer();
+  var veil=el("div","veil"); veil.onclick=closeLayer; q("layer").appendChild(veil);
+  var d=el("div","drawer");
+  d.appendChild(el("h2",null,"انسخي المحتوى يدوياً"));
+  var ta=el("textarea","t"); ta.rows=20; ta.value=text; d.appendChild(ta);
+  var r=el("div","row"); r.style.marginTop="10px";
+  r.appendChild(btn("تحديد الكل","sm",function(){ ta.select(); }));
+  r.appendChild(btn("إغلاق","",closeLayer));
+  d.appendChild(r); q("layer").appendChild(d);
+  ta.select();
+}
+var SQL_CACHE=null;
+async function getSql(){
+  if(SQL_CACHE) return SQL_CACHE;
+  try{ var r=await fetch("supabase/schema.sql",{cache:"no-store"}); if(r.ok){ SQL_CACHE=await r.text(); return SQL_CACHE; } }catch(e){}
+  return null;
 }
 
 async function loadAll(){
@@ -401,14 +474,87 @@ function render(){
   ({board:viewBoard,mine:viewMine,groups:viewGroups,timeline:viewTimeline,feed:viewFeed,scores:viewScores,setup:viewSetup}[S.tab]||viewBoard)(v);
 }
 function errBox(msg){ var d=el("div","banner bad",msg); return d; }
-function setupNeeded(){
-  var d=el("div","sec");
-  d.innerHTML='<h2>لم تُربط قاعدة البيانات بعد</h2><div class="hint">خطوتان فقط:</div>'+
-    '<ol style="font-size:13.5px;line-height:1.9;padding-inline-start:20px">'+
-    '<li>أنشئي مشروعاً مجانياً في <a href="https://supabase.com" target="_blank" rel="noopener">supabase.com</a>، ثم شغّلي محتوى الملف <code class="k">supabase/schema.sql</code> في SQL Editor.</li>'+
-    '<li>انسخي <code class="k">Project URL</code> و <code class="k">anon key</code> من Project Settings ← Data API، وضعيهما في ملف <code class="k">config.js</code>.</li>'+
-    '</ol><div class="hint" style="margin-top:10px">التفاصيل كاملة في ملف <code class="k">README.md</code>.</div>';
+function step(n,title,desc){
+  var d=el("div","step");
+  var sn=el("div","sn",String(n)); d.appendChild(sn);
+  var body=el("div");
+  body.appendChild(el("strong",null,title));
+  var sd=el("div","sd"); sd.innerHTML=desc; body.appendChild(sd);
+  d.appendChild(body); d._body=body;
   return d;
+}
+function setupNeeded(){
+  var cur=readCfg()||{url:"",key:""};
+  var host=el("div");
+
+  var head=el("div","sec");
+  head.innerHTML='<h2>إعداد الأداة — ثلاث خطوات</h2>'+
+    '<div class="hint">نفّذيها بالترتيب داخل المتصفح. لا حاجة لأي أوامر أو برامج.</div>';
+  host.appendChild(head);
+
+  var box=el("div","sec");
+
+  /* 1 — SQL */
+  var s1=step(1,"شغّلي كود قاعدة البيانات",
+    'في موقع Supabase، من القائمة اليمنى: <b>SQL Editor</b> ← زر <b>New query</b> ← الصقي الكود في المربع الكبير ← اضغطي <b>Run</b> (أو Ctrl+Enter). ستظهر كلمة <b>Success</b>.');
+  var r1=el("div","row"); r1.style.marginTop="9px";
+  var b1=btn("نسخ كود قاعدة البيانات","primary sm",async function(){
+    b1.disabled=true; var sql=await getSql(); b1.disabled=false;
+    if(sql) copyText(sql,"تم نسخ الكود — الصقيه في SQL Editor واضغطي Run");
+    else toast("افتحي ملف supabase/schema.sql من المستودع وانسخي محتواه");
+  });
+  r1.appendChild(b1);
+  var a1=el("a","btn sm","فتح Supabase"); a1.href="https://supabase.com/dashboard"; a1.target="_blank"; a1.rel="noopener";
+  r1.appendChild(a1);
+  s1._body.appendChild(r1); box.appendChild(s1);
+
+  /* 2 — keys */
+  var s2=step(2,"الصقي رابط المشروع والمفتاح",
+    'في Supabase: <b>Project Settings</b> ← <b>API</b> (أو <b>Data API</b>). انسخي <b>Project URL</b> والمفتاح المكتوب أمامه <b>anon</b> أو <b>publishable</b> — وليس <b>service_role</b>.');
+  var f2=el("div"); f2.style.marginTop="9px";
+  f2.innerHTML='<label class="f" for="cfgUrl">Project URL</label>'+
+    '<input class="t" id="cfgUrl" dir="ltr" placeholder="https://xxxxxxxx.supabase.co" value="'+esc(cur.url||"")+'">'+
+    '<div style="margin-top:9px"><label class="f" for="cfgKey">anon / publishable key</label>'+
+    '<input class="t" id="cfgKey" dir="ltr" placeholder="eyJhbGciOi..." value="'+esc(cur.key||"")+'"></div>';
+  s2._body.appendChild(f2);
+  box.appendChild(s2);
+
+  /* 3 — verify */
+  var s3=step(3,"افحصي الإعداد",
+    'اضغطي الزر وسأخبرك فوراً إن كان كل شيء سليماً، أو ما الذي ينقص بالضبط.');
+  var out=el("div"); out.style.marginTop="9px"; s3._body.appendChild(out);
+  var r3=el("div","row"); r3.style.marginTop="9px";
+  var b3=btn("فحص الاتصال وحفظه","primary sm",async function(){
+    var u=q("cfgUrl").value, k=q("cfgKey").value;
+    b3.disabled=true; out.innerHTML='<div class="banner" style="margin:0">جارِ الفحص…</div>';
+    var res=await diagnose(u,k);
+    b3.disabled=false;
+    if(!res.ok){ out.innerHTML='<div class="banner bad" style="margin:0">'+esc(res.msg)+'</div>'; return; }
+    writeCfg(String(u).trim().replace(/\/+$/,""),String(k).trim());
+    out.innerHTML='<div class="banner good" style="margin:0">'+esc(res.msg)+'</div>';
+    setTimeout(restart,600);
+  });
+  r3.appendChild(b3);
+  s3._body.appendChild(r3);
+  box.appendChild(s3);
+  host.appendChild(box);
+
+  /* الخطوة الدائمة */
+  var last=el("div","sec");
+  last.innerHTML='<h2>لتعمل الأداة عند الطالبات أيضاً</h2>'+
+    '<div class="hint">ما حفظتِه الآن يعمل في متصفحك أنتِ فقط. لتصل الأداة للجميع، ضعي القيمتين في ملف <code class="k">config.js</code> داخل المستودع — تعديل واحد من المتصفح، بلا أوامر.</div>';
+  var rl=el("div","row");
+  rl.appendChild(btn("نسخ محتوى config.js","sm",function(){
+    var u=q("cfgUrl")?q("cfgUrl").value.trim():"", k=q("cfgKey")?q("cfgKey").value.trim():"";
+    copyText('window.TRACKER_CONFIG = {\n  SUPABASE_URL: "'+u+'",\n  SUPABASE_ANON_KEY: "'+k+'"\n};\n',
+             "تم النسخ — الصقيه بدل محتوى config.js واضغطي Commit changes");
+  }));
+  var ag=el("a","btn sm","فتح config.js للتعديل");
+  ag.href="https://github.com/Cyanera/vibe-coding/edit/claude/loving-cray-3khvno/config.js"; ag.target="_blank"; ag.rel="noopener";
+  rl.appendChild(ag);
+  last.appendChild(rl);
+  host.appendChild(last);
+  return host;
 }
 
 /* ---------------------------- اللوحة ---------------------------- */
@@ -935,16 +1081,11 @@ function openTeacherLogin(){
 }
 
 /* ---------------------------- الإقلاع ---------------------------- */
+async function restart(){ S.err=""; S.ready=false; S.role="public"; await boot(); }
 async function boot(){
   render();
-  if(!configured()) return;
-  if(!window.supabase||!window.supabase.createClient){
-    await new Promise(function(res){
-      var s=document.createElement("script");
-      s.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
-      s.onload=res; s.onerror=res; document.head.appendChild(s);
-    });
-  }
+  await ensureLib();
+  if(!configured()){ render(); return; }
   if(!connect()) return;
   try{
     var ses=await sb.auth.getSession();
