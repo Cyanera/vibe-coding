@@ -251,6 +251,7 @@ code.k{font-family:var(--mono);background:var(--surface-2);border:1px solid var(
 (function(){
 "use strict";
 
+var BUILD="2026-09-27-005";
 /* ============================ حالة التطبيق ============================ */
 var S = {
   settings:{title:"مسار مشاريع Vibe Coding",course:"",org:"",totalMarks:7},
@@ -450,7 +451,7 @@ function tabsFor(){
 function render(){
   q("hTitle").textContent=S.settings.title||"مسار مشاريع Vibe Coding";
   q("hCourse").textContent=S.settings.course||"";
-  q("foot").textContent=S.settings.org||"";
+  q("foot").textContent=(S.settings.org||"")+"  ·  نسخة "+BUILD;
   var nm=nextMilestone();
   q("hNext").textContent=nm?("القادم: "+nm.name+" · "+relText(nm.due)):"";
   q("hNext").hidden=!nm;
