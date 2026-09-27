@@ -200,6 +200,13 @@ textarea.t{resize:vertical;min-height:58px;line-height:1.55}
 .st[data-s="blocked"][aria-pressed="true"]{background:var(--late-soft);border-color:var(--late);color:var(--late-ink)}
 .st[data-s="none"][aria-pressed="true"]{border-color:var(--line-strong)}
 
+details.req{margin-top:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+details.req>summary{cursor:pointer;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--go-ink);list-style:none;user-select:none}
+details.req>summary::-webkit-details-marker{display:none}
+details.req>summary::after{content:" ▾";font-size:10px}
+details.req[open]>summary::after{content:" ▴"}
+details.req>summary:hover{background:var(--surface-2);border-radius:7px}
+details.req .body{padding:2px 12px 12px;font-size:13px;color:var(--ink-2);white-space:pre-wrap;line-height:1.85}
 .step{display:grid;grid-template-columns:auto 1fr;gap:12px;border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:10px;background:var(--surface-2)}
 .step .sn{width:26px;height:26px;border-radius:99px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:500}
 .step.done .sn{background:var(--ok);color:#fff}
@@ -279,6 +286,10 @@ function toast(m){var t=el("div","toast",m);document.body.appendChild(t);setTime
 function closeLayer(){q("layer").innerHTML="";}
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeLayer();});
 
+function reqBlock(m,label){
+  if(!m||!m.details) return "";
+  return '<details class="req"><summary>'+(label||"تفاصيل المطلوب")+'</summary><div class="body">'+esc(m.details)+'</div></details>';
+}
 function P(gid,mid){return S.progress[gid+"|"+mid]||{status:"none",note:"",evidence_url:"",approved:false};}
 function E(gid,mid){return S.evals[gid+"|"+mid]||{score:null,teacher_note:""};}
 function cellState(gid,mid){var p=P(gid,mid); return p.approved?"approved":p.status;}
@@ -651,7 +662,8 @@ function openStudentCell(anchor,g,m){
   var pop=el("div","pop");
   pop.innerHTML=
     '<div class="ttl"><strong>'+esc(m.name)+'</strong><br>الموعد: <span class="num">'+esc(dayName(m.due))+'</span> · '+esc(relText(m.due))+'</div>'+
-    '<div class="statuses"></div>'+
+    reqBlock(m)+
+    '<div class="statuses" style="margin-top:10px"></div>'+
     '<label class="f" for="sNote">ماذا أنجزتن؟</label>'+
     '<textarea class="t" id="sNote" rows="2" placeholder="مثال: أنهينا الاستبيان وحصلنا على ٤٠ رد">'+esc(p.note||"")+'</textarea>'+
     '<div style="margin-top:9px"><label class="f" for="sEv">رابط الإثبات (اختياري)</label>'+
@@ -693,7 +705,8 @@ function openTeacherCell(anchor,g,m){
     '<div class="ttl"><strong>'+esc(g.name)+'</strong> — '+esc(m.name)+'<br>حالة المجموعة: '+esc(ST[p.status])+
       (p.note?'<br>«'+esc(p.note)+'»':'')+
       (p.evidence_url?'<br><a href="'+esc(p.evidence_url)+'" target="_blank" rel="noopener">فتح رابط الإثبات</a>':'')+'</div>'+
-    '<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin-bottom:10px">'+
+    reqBlock(m)+
+    '<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;margin:10px 0">'+
       '<input type="checkbox" id="tApp"'+(appr?" checked":"")+'> اعتماد المرحلة</label>'+
     '<label class="f" for="tScore">الدرجة (من '+(+m.weight)+')</label>'+
     '<input class="t num" id="tScore" type="number" min="0" max="'+(+m.weight)+'" step="0.25" value="'+(typeof ev.score==="number"?ev.score:"")+'" placeholder="اتركيها فارغة إن لم تُقيَّم">'+
@@ -784,6 +797,7 @@ function viewMine(host){
       '<span class="chip '+(st==="approved"?"ok":st==="submitted"?"go":st==="blocked"?"late":st==="wip"?"sig":"")+'">'+esc(ST[st])+'</span></div>'+
       '<ul style="margin:8px 0 0;padding-inline-start:18px;font-size:12.5px;color:var(--ink-2)">'+
       (m.items||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'+
+      reqBlock(m)+
       (p.note?'<div style="font-size:12.5px;margin-top:7px">آخر تحديث: '+esc(p.note)+'</div>':'');
     var rr=el("div","row"); rr.style.marginTop="9px";
     rr.appendChild(btn(p.approved?"معتمدة — للاطلاع":"تحديث الحالة","sm",function(ev){ openStudentCell(ev.currentTarget,g,m); }));
@@ -910,6 +924,7 @@ function viewTimeline(host){
       '<div class="tl-body"><h3>'+esc(m.name)+' <span class="chip num">'+(+m.weight)+' درجة</span></h3>'+
       '<div class="desc">'+esc(m.description||"")+'</div>'+
       '<ul>'+(m.items||[]).map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'+
+      reqBlock(m)+
       (gs.length?'<div class="mini"><i style="width:'+pct+'%"></i></div><div class="cnt num">'+subs+' من '+gs.length+' مجموعات سلّمت</div>':'')+
       '</div>';
     sec.appendChild(it);
@@ -1004,20 +1019,23 @@ function viewSetup(host){
       '<div><label class="f" for="sd'+i+'">الموعد</label><input class="t num" id="sd'+i+'" type="date" value="'+esc(m.due_date)+'"></div>'+
       '<div><label class="f" for="sw'+i+'">الدرجة</label><input class="t num" id="sw'+i+'" type="number" min="0" step="0.25" value="'+(+m.weight)+'"></div></div>'+
       '<div style="margin-top:9px"><label class="f" for="sx'+i+'">الوصف</label><input class="t" id="sx'+i+'" value="'+esc(m.description||"")+'"></div>'+
-      '<div style="margin-top:9px"><label class="f" for="si'+i+'">المطلوب تسليمه (سطر لكل بند)</label><textarea class="t" id="si'+i+'" rows="3">'+esc((m.items||[]).join("\n"))+'</textarea></div>';
+      '<div style="margin-top:9px"><label class="f" for="si'+i+'">المطلوب تسليمه (سطر لكل بند)</label><textarea class="t" id="si'+i+'" rows="3">'+esc((m.items||[]).join("\n"))+'</textarea></div>'+
+      (("details" in m)?'<div style="margin-top:9px"><label class="f" for="sq'+i+'">تفاصيل المطلوب (يقرأها الطالبات عند تحديث المرحلة)</label><textarea class="t" id="sq'+i+'" rows="6">'+esc(m.details||"")+'</textarea></div>':'');
     g.appendChild(box);
   });
   var gr=el("div","row");
   gr.appendChild(btn("حفظ المراحل","primary sm",async function(){
     for(var i=0;i<S.milestones.length;i++){
       var m=S.milestones[i];
-      var r=await sb.from("milestones").update({
+      var payload={
         name:q("sn"+i).value.trim()||m.name,
         due_date:q("sd"+i).value||m.due_date,
         weight:parseFloat(q("sw"+i).value)||0,
         description:q("sx"+i).value.trim(),
         items:q("si"+i).value.split("\n").map(function(s){return s.trim();}).filter(Boolean)
-      }).eq("id",m.id);
+      };
+      if("details" in m) payload.details=q("sq"+i).value;
+      var r=await sb.from("milestones").update(payload).eq("id",m.id);
       if(r.error){ toast("تعذّر الحفظ: "+r.error.message); return; }
     }
     toast("تم حفظ المراحل"); loadAll();
