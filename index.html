@@ -251,7 +251,7 @@ code.k{font-family:var(--mono);background:var(--surface-2);border:1px solid var(
 (function(){
 "use strict";
 
-var BUILD="2026-09-27-005";
+var BUILD="2026-09-27-006";
 /* ============================ حالة التطبيق ============================ */
 var S = {
   settings:{title:"مسار مشاريع Vibe Coding",course:"",org:"",totalMarks:7},
@@ -287,6 +287,27 @@ function toast(m){var t=el("div","toast",m);document.body.appendChild(t);setTime
 function closeLayer(){q("layer").innerHTML="";}
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closeLayer();});
 
+var PLAN_TARGET="2026-11-15";
+function planStale(){
+  if(!S.milestones.length) return false;
+  var last=S.milestones[S.milestones.length-1];
+  return !("details" in last) || String(last.due_date||"")!==PLAN_TARGET;
+}
+function stalePlanBanner(){
+  var d=el("div","banner");
+  d.style.display="flex"; d.style.flexWrap="wrap"; d.style.gap="10px"; d.style.alignItems="center";
+  d.appendChild(el("span",null,"تنبيه للمشرفة: الخطة المحفوظة في قاعدة البيانات قديمة. حدّثيها لتظهر مواعيد نوفمبر وتفاصيل كل مرحلة."));
+  var b=btn("نسخ كود التحديث","primary sm",async function(){
+    b.disabled=true;
+    var sql=null;
+    try{ var r=await fetch("supabase/update-plan.sql",{cache:"no-store"}); if(r.ok) sql=await r.text(); }catch(e){}
+    b.disabled=false;
+    if(sql) copyText(sql,"تم النسخ — الصقيه في SQL Editor واضغطي Run");
+    else toast("افتحي الملف supabase/update-plan.sql من المستودع وانسخي محتواه");
+  });
+  d.appendChild(b);
+  return d;
+}
 function reqBlock(m,label){
   if(!m||!m.details) return "";
   return '<details class="req"><summary>'+(label||"تفاصيل المطلوب")+'</summary><div class="body">'+esc(m.details)+'</div></details>';
@@ -589,6 +610,7 @@ function statStrip(host){
   host.appendChild(s);
 }
 function viewBoard(host){
+  if(planStale()) host.appendChild(stalePlanBanner());
   statStrip(host);
   if(S.role==="teacher"){
     var bar=el("div","row"); bar.style.margin="0 0 12px";
@@ -911,6 +933,7 @@ function openEditGroup(g){
 
 /* ---------------------------- الخط الزمني ---------------------------- */
 function viewTimeline(host){
+  if(planStale()) host.appendChild(stalePlanBanner());
   var head=el("div","sec");
   head.innerHTML='<h2>خطة الفعالية ومواعيد التسليم</h2><div class="hint">صفحة جاهزة للطباعة أو الحفظ PDF ومشاركتها مع الطالبات.</div>';
   head.appendChild(btn("طباعة / حفظ PDF","sm",function(){window.print();}));
@@ -1050,6 +1073,17 @@ function viewSetup(host){
   var cr=el("div","row"); cr.style.marginTop="10px";
   cr.appendChild(btn("+ إضافة مجموعة","sm",openNewGroup));
   c.appendChild(cr); host.appendChild(c);
+  var mt=el("div","sec");
+  mt.innerHTML='<h2>صيانة الخطة</h2><div class="hint">لتطبيق أي تعديل على المراحل أو المواعيد وصل من المطوّر: انسخي الكود والصقيه في Supabase ← SQL Editor ← Run. لا يحذف أي بيانات.</div>';
+  var mr=el("div","row");
+  var mb=btn("نسخ كود تحديث الخطة","sm",async function(){
+    mb.disabled=true; var sql=null;
+    try{ var rr=await fetch("supabase/update-plan.sql",{cache:"no-store"}); if(rr.ok) sql=await rr.text(); }catch(e){}
+    mb.disabled=false;
+    if(sql) copyText(sql,"تم النسخ — الصقيه في SQL Editor واضغطي Run"); else toast("تعذّر جلب الملف");
+  });
+  mr.appendChild(mb); mt.appendChild(mr); host.appendChild(mt);
+
   sb.from("groups").select("id,name,code,ord").order("ord").then(function(r){
     if(r.error){ lst.innerHTML='<div class="banner bad">تعذّر قراءة الرموز.</div>'; return; }
     var t=el("table","grid");
