@@ -30,30 +30,55 @@ create or replace function t.pid(n int) returns uuid language sql stable securit
 grant execute on function t.pid(int) to anon, authenticated;
 
 \echo == 1. Anonymous access is locked down
+select access_key as k from competition_settings \gset
 set role anon;
 select t.fails('select * from public.evaluations', 'permission denied');
-select t.fails('select code_hash from public.judges', 'permission denied');
+select t.fails('select * from public.judges', 'permission denied');
+select t.fails('select * from public.competition_settings', 'permission denied');
 select t.fails('select * from public.judge_sessions', 'permission denied');
 select t.fails('select * from public.finalized_awards', 'permission denied');
 select t.fails('insert into public.projects(number,name) values (99,''x'')', 'permission denied');
 select t.fails('select public.admin_overview()', 'permission denied');
 select t.fails('select public.admin_finalize()', 'permission denied');
+select t.fails('select public.admin_regenerate_key()', 'permission denied');
 select t.fails('select private.compute_awards()', 'permission denied');
-select t.ok(jsonb_array_length(public.list_login_judges()) = 3, 'login screen lists 3 active judges');
-select t.ok(public.list_login_judges()::text not like '%code%', 'login list exposes no code data');
 
-\echo == 2. Judge login, lockout and sessions
-select (public.judge_login(:'j1', 'wrong')->>'ok')::boolean = false as r \gset
-select t.ok(:'r' = 't', 'wrong code is rejected');
-select public.judge_login(:'j1', 'demo-0001')->>'token' as tok1 \gset
-select t.ok(length(:'tok1') = 64, 'correct code (any case/dash) gives a token');
-select public.judge_login(:'j2', ' DEMO0002 ')->>'token' as tok2 \gset
-select t.ok(length(:'tok2') = 64, 'second judge logs in');
-select public.judge_login(:'j3','x1'), public.judge_login(:'j3','x2'), public.judge_login(:'j3','x3'),
-       public.judge_login(:'j3','x4'), public.judge_login(:'j3','x5') \gset
-select public.judge_login(:'j3','DEMO0003')->>'error' as lockmsg \gset
-select t.ok(:'lockmsg' like 'Too many attempts%', 'judge is locked after 5 failed attempts, even with the right code');
+\echo == 2. Private link key, name sign-in and sessions
+select t.ok((public.list_login_judges('wrong-key')->>'valid') = 'false' and public.list_login_judges('wrong-key')->'judges' = '[]'::jsonb, 'wrong link key: not valid and no names leaked');
+select t.ok((public.list_login_judges(null)->>'valid') = 'false', 'missing key: not valid');
+select t.ok((public.list_login_judges(:'k')->>'valid') = 'true' and jsonb_array_length(public.list_login_judges(:'k')->'judges') = 3, 'correct key lists the 3 registered names');
+select t.ok(public.list_login_judges(:'k')::text not like '%access_key%', 'name list exposes no key data');
+select t.ok(public.judge_login('wrong-key', 'Dr. Judge One')->>'reason' = 'bad_key', 'sign-in with a wrong key is refused');
+select t.ok(public.judge_login(:'k', '   ')->>'reason' = 'empty', 'empty name is refused');
+select public.judge_login(:'k', '  dr.   JUDGE  one ')->>'token' as tok1 \gset
+select t.ok(length(:'tok1') = 64, 'name matches ignoring case and extra spaces');
+select public.judge_login(:'k', 'Dr. Judge Two')->>'token' as tok2 \gset
+select t.ok(length(:'tok2') = 64, 'second judge signs in');
+select public.judge_login(:'k', 'dr. judge one')->>'token' as tok1b \gset
+select t.ok((public.judge_state(:'tok1b')->'judge'->>'name') = 'Dr. Judge One', 'same name on another device reaches the same judge');
+select t.ok(public.judge_login(:'k', 'Dr. Judge Tow')->>'reason' = 'confirm_new', 'a typo is NOT silently turned into a new judge (needs confirmation)');
+reset role;
+select t.ok((select count(*) from judges) = 3, 'no judge was created by the unconfirmed typo');
+set role anon;
+select public.judge_login(:'k', 'Dr. Visiting  Guest', true)->>'token' as tokg \gset
+select t.ok(length(:'tokg') = 64, 'confirmed new name creates a judge and signs in');
+reset role;
+select t.ok((select count(*) from judges where name = 'Dr. Visiting Guest') = 1, 'new judge stored with a normalised name');
+select id as jg from judges where name = 'Dr. Visiting Guest' \gset
+-- the admin closes new names, deactivates the guest
+update competition_settings set allow_new_judges = false;
+set role anon;
+select t.ok(public.judge_login(:'k', 'Someone Else', true)->>'reason' = 'unknown', 'with new names closed, unknown names cannot create judges');
+select t.ok(public.judge_login(:'k', 'Dr. Judge Three')->>'ok' = 'true', 'registered names can still sign in');
+reset role;
+update competition_settings set allow_new_judges = true;
+update judges set active = false where id = :'jg';
+set role anon;
+select t.ok(public.judge_login(:'k', 'dr. visiting guest')->>'reason' = 'inactive', 'deactivated judge cannot sign in');
+select t.fails(format($$select public.judge_state(%L)$$, :'tokg'), 'Session expired');
 select t.fails($$select public.judge_state('not-a-token')$$, 'Session expired');
+reset role;
+delete from judges where id = :'jg';
 
 \echo == 3. Evaluation validation
 select t.fails(format($$select public.judge_save(%L, %L, 6, 3, 3, 3)$$, :'tok1', t.pid(1)), 'whole numbers from 0 to 5');
@@ -117,10 +142,10 @@ select t.ok((select count(*) from public.projects) = 0, 'non-admin sees zero pro
 select t.fails('insert into public.projects(number,name) values (50,''x'')', 'permission denied');
 select t.fails('select public.admin_save_project(null, 50, ''x'')', 'Not authorized');
 select t.fails('select public.admin_delete_project(gen_random_uuid())', 'Not authorized');
-select t.fails('select code_hash from public.judges', 'permission denied');
+select t.fails('select name_key from public.judges', 'permission denied');
 set request.jwt.claim.sub = :'admin_id';
 select t.ok((select count(*) from public.evaluations) = 30, 'admin reads all 30 evaluations');
-select t.fails('select code_hash from public.judges', 'permission denied');
+select t.fails('select name_key from public.judges', 'permission denied');
 
 \echo == 8. Tie for 1st blocks 2nd and 3rd until an admin decides
 reset role;
@@ -197,26 +222,35 @@ select t.ok((select name from public.projects where number = 12) = 'Renamed Extr
 select public.admin_delete_project(t.pid(12)) \gset
 select t.ok((select count(*) from public.projects) = 10, 'project can be removed');
 
-\echo == 12. Judge management
-select public.admin_create_judge('Dr. New Judge')->>'code' as newcode \gset
-select t.ok(:'newcode' ~ '^[A-Z2-9]{4}-[A-Z2-9]{4}$', 'new judge gets a readable 8-char code');
-select id as jn from public.judges where name = 'Dr. New Judge' \gset
-reset role; set role anon;
-select public.judge_login(:'jn', :'newcode')->>'token' as tokn \gset
-select t.ok(length(:'tokn') = 64, 'new judge can log in with the generated code');
-reset role; set role authenticated; set request.jwt.claim.sub = :'admin_id';
-select public.admin_reset_judge_code(:'jn')->>'code' as newcode2 \gset
+\echo == 12. Judge management and link control
+select public.admin_create_judge('Dr. New Judge')->>'id' as jn \gset
+select t.ok((select count(*) from public.judges where name = 'Dr. New Judge') = 1, 'admin can pre-register a judge');
+select t.fails($$select public.admin_create_judge('  dr.  new JUDGE ')$$, 'already exists');
+select t.fails(format($$select public.admin_update_judge(%L, 'Dr. Judge One', true)$$, :'jn'), 'already exists');
+select public.admin_update_judge(:'jn', 'Dr. New Judge Renamed', true) \gset
+select t.ok((select count(*) from public.judges where name = 'Dr. New Judge Renamed') = 1, 'judge can be renamed');
+select (public.admin_overview()->'settings'->>'access_key') as adminkey \gset
+select t.ok(:'adminkey' = :'k' and length(:'adminkey') = 32, 'admin can read the link key');
 set role anon;
-select t.fails(format($$select public.judge_state(%L)$$, :'tokn'), 'Session expired');
-select (public.judge_login(:'jn', :'newcode')->>'ok')::boolean as stillworks \gset
-select t.ok(:'stillworks' = 'f', 'old code stops working after reset');
-select t.ok((public.judge_login(:'jn', :'newcode2')->>'ok')::boolean, 'new code works');
+select public.judge_login(:'k', 'Dr. New Judge Renamed')->>'token' as tokn \gset
+select t.ok(length(:'tokn') = 64, 'pre-registered judge signs in by typing the name');
 reset role; set role authenticated; set request.jwt.claim.sub = :'admin_id';
-select public.admin_update_judge(:'jn', 'Dr. New Judge', false) \gset
+select public.admin_update_judge(:'jn', 'Dr. New Judge Renamed', false) \gset
 select t.ok((public.admin_overview()->'totals'->>'judges') = '3', 'deactivated judge not counted');
 select t.ok((public.admin_overview()->>'complete')::boolean, 'completion only requires ACTIVE judges');
+select public.admin_set_allow_new(false) \gset
+select t.ok((public.admin_overview()->'settings'->>'allow_new_judges') = 'false', 'admin can close new names');
+select public.admin_set_allow_new(true) \gset
 set role anon;
-select t.ok(jsonb_array_length(public.list_login_judges()) = 3, 'deactivated judge hidden from login cards');
-select t.ok((public.judge_login(:'jn', :'newcode2')->>'ok')::boolean = false, 'deactivated judge cannot log in');
+select t.fails(format($$select public.judge_state(%L)$$, :'tokn'), 'Session expired');
+select t.ok(jsonb_array_length(public.list_login_judges(:'k')->'judges') = 3, 'deactivated judge hidden from the name list');
+reset role; set role authenticated; set request.jwt.claim.sub = :'admin_id';
+select public.admin_regenerate_key() \gset
+select (public.admin_overview()->'settings'->>'access_key') as newkey \gset
+select t.ok(:'newkey' <> :'k', 'regenerating creates a different key');
+set role anon;
+select t.fails(format($$select public.judge_state(%L)$$, :'tok2'), 'Session expired');
+select t.ok(public.judge_login(:'k', 'Dr. Judge Two')->>'reason' = 'bad_key', 'old link no longer works');
+select t.ok(public.judge_login(:'newkey', 'Dr. Judge Two')->>'ok' = 'true', 'new link works');
 reset role;
 \echo ALL TESTS PASSED

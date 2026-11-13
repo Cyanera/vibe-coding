@@ -40,12 +40,12 @@ const shot = async (page, name) => { if (shots) await page.screenshot({ path: `$
 const PLAN = { 1: [5, 5, 5, 5], 2: [5, 5, 5, 5], 3: [3, 3, 5, 3], 4: [4, 4, 4, 4], 5: [3, 4, 4, 3], 6: [2, 3, 3, 2], 7: [4, 3, 4, 3], 8: [1, 2, 2, 1], 9: [3, 3, 3, 3], 10: [4, 4, 3, 4] }
 const LABELS = ['Idea & Innovation', 'Functionality & Implementation', 'UI/UX Design', 'Presentation & Understanding']
 
-async function judgeLogin(ctx, name, code) {
+const KEY = () => sh(pg(`psql -At -d ${DB} -c 'select access_key from competition_settings'`)).trim()
+async function judgeLogin(ctx, typedName) {
   const page = await ctx.newPage()
-  await page.goto(APP + '/')
-  await page.getByRole('button', { name: new RegExp(name) }).click()
-  await page.getByLabel('Access code').fill(code)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.goto(`${APP}/?k=${KEY()}`)
+  await page.getByLabel('Your name').fill(typedName)
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByText(/of 10 Projects Evaluated/).waitFor()
   return page
 }
@@ -58,7 +58,8 @@ async function scoreProject(page, n) {
 try {
   // ===== Judge 1: UX checks ===============================================
   const c1 = await browser.newContext(phone)
-  const p1 = await judgeLogin(c1, 'Judge One', 'demo-0001')
+  const p1 = await judgeLogin(c1, '  dr.  JUDGE one ')
+  check(!p1.url().includes('k='), 'the secret key is removed from the address bar after opening the link')
   check(await p1.getByText('0 of 10 Projects Evaluated').isVisible(), 'dashboard shows "0 of 10 Projects Evaluated"')
   check((await p1.getByText('Pending').count()) === 10, 'all 10 project cards are Pending')
   await shot(p1, '01-judge-dashboard')
@@ -121,25 +122,35 @@ try {
 
   // ===== Judge 2 and 3 ====================================================
   const c2 = await browser.newContext(phone)
-  const p2 = await judgeLogin(c2, 'Judge Two', 'DEMO0002')
+  const p2 = await judgeLogin(c2, 'Dr. Judge Two')
   check(await p2.getByText('0 of 10 Projects Evaluated').isVisible(), "judge 2 sees none of judge 1's evaluations (0 of 10)")
   for (let n = 1; n <= 10; n++) { if (n === 1) await p2.getByRole('button', { name: 'Continue Evaluating' }).click(); await scoreProject(p2, n); if (n < 10) await p2.waitForURL(`**/judge/project/${n + 1}`) }
   await p2.getByText('10 of 10 Projects Evaluated').waitFor()
   const c3 = await browser.newContext(phone)
-  const p3 = await judgeLogin(c3, 'Judge Three', 'DEMO0003')
+  const p3 = await judgeLogin(c3, 'Dr. Judge Three')
   for (let n = 1; n <= 10; n++) { if (n === 1) await p3.getByRole('button', { name: 'Continue Evaluating' }).click(); await scoreProject(p3, n); if (n < 10) await p3.waitForURL(`**/judge/project/${n + 1}`) }
   await p3.getByText('10 of 10 Projects Evaluated').waitFor()
   check(true, 'three judges each completed 10 evaluations')
 
-  // wrong code
+  // link and name checks (public visitor)
   const cw = await browser.newContext(phone)
   const pw = await cw.newPage()
   await pw.goto(APP + '/')
-  await pw.getByRole('button', { name: /Judge One/ }).click()
-  await pw.getByLabel('Access code').fill('WRONG')
-  await pw.getByRole('button', { name: 'Sign in' }).click()
-  await pw.getByRole('alert').filter({ hasText: 'Invalid access code' }).waitFor()
-  check(true, 'wrong access code is rejected')
+  await pw.getByText('This portal is for invited judges only.').waitFor()
+  check(true, 'without the private link the portal shows no judge names or form')
+  await pw.goto(APP + '/?k=not-the-key')
+  await pw.getByText('This link is no longer valid.').waitFor()
+  check((await pw.getByLabel('Your name').count()) === 0, 'a wrong link key is rejected')
+  await pw.goto(`${APP}/?k=${KEY()}`)
+  await pw.getByLabel('Your name').fill('Dr. Judge Tow')
+  await pw.getByRole('button', { name: 'Continue' }).click()
+  await pw.getByRole('dialog').getByText(/not on the judges list/).waitFor()
+  await pw.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
+  check(pw.url() === APP + '/' && (await pw.getByLabel('Your name').isVisible()), 'a typo asks for confirmation and does not create a judge')
+  check(sh(pg(`psql -At -d ${DB} -c 'select count(*) from judges'`)).trim() === '3', 'no extra judge was created')
+  await pw.getByLabel('Your name').fill('judge two')
+  await pw.getByRole('button', { name: 'Dr. Judge Two' }).waitFor()
+  check(true, 'typing part of a name suggests registered names')
   await pw.goto(APP + '/judge'); await pw.waitForURL(APP + '/')
   check(true, '/judge without a session redirects to the login screen')
   await pw.goto(APP + '/admin')
@@ -241,11 +252,35 @@ try {
 
   // ===== Admin management =================================================
   await a.getByRole('button', { name: 'Judges' }).click()
+  const oldKey = KEY()
+  check((await a.getByTestId('judge-link').inputValue()) === `${APP}/?k=${oldKey}`, 'admin sees the private judges link')
   await a.getByLabel('Judge name').fill('Dr. Added Judge')
   await a.getByRole('button', { name: 'Add judge' }).click()
-  const newCode = await a.getByTestId('new-code').innerText()
-  check(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(newCode), `new judge access code generated (${newCode})`)
-  await a.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+  await a.getByRole('listitem').filter({ hasText: 'Dr. Added Judge' }).waitFor()
+  check(true, 'admin can pre-register a judge name')
+
+  // close new names, then a stranger cannot create a judge
+  await a.getByLabel('Allow judges to add their own name').click()
+  await a.getByText('New names closed').waitFor()
+  await pw.goto(`${APP}/?k=${oldKey}`)
+  await pw.getByLabel('Your name').fill('Nobody New')
+  await pw.getByRole('button', { name: 'Continue' }).click()
+  await pw.getByRole('alert').filter({ hasText: 'Name not found' }).waitFor()
+  check(sh(pg(`psql -At -d ${DB} -c 'select count(*) from judges'`)).trim() === '4', 'with new names closed, an unknown name cannot create a judge')
+  await a.getByLabel('Allow judges to add their own name').click()
+  await a.getByText('New names allowed').waitFor()
+
+  // new link: the old one dies
+  await a.getByRole('button', { name: 'Create new link' }).click()
+  await a.getByRole('dialog').getByRole('button', { name: 'Create new link' }).click()
+  await a.getByText('New link created').waitFor()
+  check(KEY() !== oldKey, 'a new link key is generated')
+  await pw.goto(`${APP}/?k=${oldKey}`)
+  await pw.getByText('This link is no longer valid.').waitFor()
+  check(true, 'the old link stops working')
+  await p2.reload()
+  await p2.getByText('Your session expired. Please enter your name again.').or(p2.getByText('This portal is for invited judges only.')).or(p2.getByText('This link is no longer valid.')).first().waitFor()
+  check(true, 'judges signed in with the old link are signed out')
   await a.getByRole('button', { name: 'Projects' }).click()
   await a.getByLabel('Project name').fill('Brand New Project')
   await a.getByRole('button', { name: 'Add project' }).click()

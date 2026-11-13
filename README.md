@@ -37,20 +37,23 @@ Places are filled in order (1st, then 2nd, then 3rd) and a project can take only
 3. Deploy.
 
 ### 3. Before the event
-- Admin → **Judges**: rename the sample judges, add real ones, tap **New code** for each and send the code privately (shown once). The sample codes `DEMO-0001…3` must not be used.
-- Admin → **Projects**: edit names/numbers if needed.
-- Admin → **Open Judging** (the seed leaves it open).
+- Admin → **Judges**: rename the 3 sample judges and add the real doctors (optional: judges can also type their own name).
+- Copy the **private judges link** from the same tab and send it only to the doctors (WhatsApp is fine).
+- Admin → **Projects**: edit names/numbers if needed. Admin → **Open Judging** (the seed leaves it open).
+- Do one dry run on your phone with a test judge, then deactivate that judge (deactivated judges are not counted).
 
 ### Run day
-Judge: open the site → tap name → enter code → score → **Save & Next**.
-Admin: `/admin` → Results → Winners (resolve ties) → **Finalize Results** → **Presentation Mode** (Space/→ reveals the next place (3rd, then 2nd, then 1st); ← hides; the reveal state is stored, so a second device can drive it).
+Judge: open the private link → type your name (or tap a suggestion) → score → **Save & Next**. Typing the same name on another device continues the same evaluations.
+Admin: `/admin` → Results → Winners (resolve ties) → **Finalize Results** → **Presentation Mode** (Space/→ reveals the next place: 3rd, then 2nd, then 1st; ← hides; the reveal state is stored, so a second device can drive it).
 
 ## Security model
-- `anon` has **no table access**. Judges are not Supabase users: `judge_login` checks a bcrypt-hashed code (5 failures lock that judge for 5 min) and returns a 48 h opaque session token; every judge RPC derives the judge from the token, so a judge can only read or write their own evaluations and never sees other scores.
-- Admin = Supabase Auth user listed in `admin_users`. All admin functions check `is_admin()`; tables are read-only via RLS for admins, writes go through RPCs. Access codes are never readable.
+- `anon` has **no table access**. Judges are not Supabase users. They open one private link carrying a secret key (`?k=…`, 128-bit, stored only in `competition_settings` and readable only by admins). Without the key the portal shows no names and the sign-in RPC refuses. The key is removed from the address bar after opening.
+- Judges sign in by typing their name (matched ignoring case and extra spaces). A name that is not registered needs an explicit confirmation to create a new judge, and the admin can switch **“Allow judges to add their own name”** off. Every judge RPC derives the judge from a 48 h opaque session token, so a judge can only read or write their own evaluations and never sees other scores.
+- **Trade-off:** anyone who has the link can type any registered name and act as that judge, so share the link privately. If it leaks, use **Create new link** (the old link stops and everyone is signed out). If you need per-person secrecy, use individual codes instead.
+- Admin = Supabase Auth user listed in `admin_users`. All admin functions check `is_admin()`; tables are read-only via RLS for admins, writes go through RPCs.
 - Scores are `smallint` with `check (0..5)`, one row per judge/project (`unique`), total is a generated column.
 - After finalization, projects, judges and scores are frozen until **Reopen Competition**.
-- Only the public anon key ships in the frontend. Evaluations live in Postgres; the browser stores only the judge session token.
+- Only the public anon key ships in the frontend. Evaluations live in Postgres; the browser stores only the judge session token and the link key.
 - Admin dashboard refreshes every 4 s (presentation every 2 s).
 
 ## Local development
@@ -63,6 +66,6 @@ npm run dev
 ## Tests
 ```bash
 npm run test:db    # SQL: isolation, RLS, validation, award order, ties, finalize/reopen (needs local PostgreSQL)
-npm run test:e2e   # browser: 3 judges on a 390×664 phone + admin + presentation (needs PostgreSQL + Playwright)
+npm run test:e2e   # browser: 3 judges on a 390×664 phone (link + typed names) + admin + presentation (needs PostgreSQL + Playwright)
 ```
 `e2e/api-shim.mjs` is a test-only stand-in for the Supabase API that runs the real schema in local Postgres. Do not deploy it.

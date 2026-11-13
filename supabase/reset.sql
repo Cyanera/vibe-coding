@@ -21,7 +21,7 @@ begin
      where n.nspname = 'public'
        and p.proname in ('is_admin','list_login_judges','judge_login','judge_logout','judge_state','judge_save',
                          'admin_overview','admin_create_judge','admin_update_judge','admin_reset_judge_code',
-                         'admin_set_judging','admin_set_reveal','admin_resolve_tie','admin_clear_tie',
+                         'admin_regenerate_key','admin_set_allow_new','admin_set_judging','admin_set_reveal','admin_resolve_tie','admin_clear_tie',
                          'admin_finalize','admin_reopen','admin_export','admin_save_project',
                          'admin_delete_project','admin_project_evaluations')
   loop

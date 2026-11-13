@@ -12,6 +12,13 @@ export const setToken = (t: string | null) => {
   try { if (t) localStorage.setItem(KEY, t); else localStorage.removeItem(KEY) } catch { /* private mode */ }
 }
 
+// The private link key (from ?k=...) is remembered so a refresh or an expired session needs no new link.
+const KEY_K = 'vibe.judge.key'
+export const getKey = () => { try { return localStorage.getItem(KEY_K) } catch { return null } }
+export const setKey = (k: string | null) => {
+  try { if (k) localStorage.setItem(KEY_K, k); else localStorage.removeItem(KEY_K) } catch { /* private mode */ }
+}
+
 type Ctx = {
   token: string
   state: JudgeState

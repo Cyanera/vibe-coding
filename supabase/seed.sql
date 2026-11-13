@@ -1,8 +1,8 @@
 -- =====================================================================
 -- Exhibition projects (editable) and sample judges. Run after schema.sql (SQL Editor).
 -- Edit names freely, or change them later from the Admin dashboard.
--- Sample judge codes are DEMO-0001 .. DEMO-0003: reset them in
--- Admin -> Judges -> "New code" BEFORE the real event.
+-- The 3 sample judges are placeholders: rename them in Admin -> Judges.
+-- Doctors sign in with the private link shown in Admin -> Judges.
 -- =====================================================================
 insert into public.projects (number, name) values
   (1,  'UJ Assistant'),
@@ -17,11 +17,8 @@ insert into public.projects (number, name) values
   (10, 'Saa''i')
 on conflict (number) do nothing;
 
-insert into public.judges (name, code_hash)
-select v.name, extensions.crypt(v.code, extensions.gen_salt('bf'))
-  from (values ('Dr. Judge One', 'DEMO0001'),
-               ('Dr. Judge Two', 'DEMO0002'),
-               ('Dr. Judge Three', 'DEMO0003')) as v(name, code)
+insert into public.judges (name)
+select v.name from (values ('Dr. Judge One'), ('Dr. Judge Two'), ('Dr. Judge Three')) as v(name)
  where not exists (select 1 from public.judges);
 
 -- Open judging for the demo (the admin can close it any time).

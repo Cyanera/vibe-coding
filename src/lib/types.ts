@@ -9,9 +9,10 @@ export type JudgeState = {
   projects: JudgeProject[]
 }
 export type LoginJudge = { id: string; name: string }
+export type LoginList = { valid: boolean; allow_new: boolean; judges: LoginJudge[] }
 export type LoginResult =
   | { ok: true; token: string; judge: LoginJudge }
-  | { ok: false; error: string }
+  | { ok: false; error: string; reason: 'bad_key' | 'empty' | 'inactive' | 'unknown' | 'confirm_new' | 'closed' }
 
 export type AwardKey = 'first' | 'second' | 'third'
 export type Candidate = { project_id: string; number: number; name: string; score: number }
@@ -46,9 +47,9 @@ export type ProjectStat = {
   avg_pres: number | null
   rank: number | null
 }
-export type JudgeRow = { id: string; name: string; active: boolean; completed: number; locked: boolean }
+export type JudgeRow = { id: string; name: string; active: boolean; completed: number }
 export type Overview = {
-  settings: { judging_open: boolean; finalized: boolean; reveal_count: number }
+  settings: { judging_open: boolean; finalized: boolean; reveal_count: number; access_key: string; allow_new_judges: boolean }
   totals: { projects: number; judges: number; expected: number; completed: number }
   complete: boolean
   ready_to_finalize: boolean

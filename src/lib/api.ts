@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import type {
-  ExportRow, JudgeState, LoginJudge, LoginResult, Overview, ProjectEvaluation,
+  ExportRow, JudgeState, LoginList, LoginResult, Overview, ProjectEvaluation,
 } from './types'
 
 export class ApiError extends Error {
@@ -38,9 +38,9 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 }
 
 // ---- judges ------------------------------------------------------------
-export const listLoginJudges = () => rpc<LoginJudge[]>('list_login_judges')
-export const judgeLogin = (judgeId: string, code: string) =>
-  rpc<LoginResult>('judge_login', { p_judge_id: judgeId, p_code: code })
+export const listLoginJudges = (key: string) => rpc<LoginList>('list_login_judges', { p_key: key })
+export const judgeLogin = (key: string, name: string, create = false) =>
+  rpc<LoginResult>('judge_login', { p_key: key, p_name: name, p_create: create })
 export const judgeLogout = (token: string) => rpc<void>('judge_logout', { p_token: token })
 export const judgeState = (token: string) => rpc<JudgeState>('judge_state', { p_token: token })
 export const judgeSave = (token: string, projectId: string, s: { idea: number; functionality: number; uiux: number; presentation: number }) =>
@@ -56,10 +56,11 @@ export const adminExport = () => rpc<ExportRow[]>('admin_export')
 export const adminSaveProject = (id: string | null, number: number, name: string) =>
   rpc<{ id: string }>('admin_save_project', { p_id: id, p_number: number, p_name: name })
 export const adminDeleteProject = (id: string) => rpc<void>('admin_delete_project', { p_id: id })
-export const adminCreateJudge = (name: string) => rpc<{ id: string; code: string }>('admin_create_judge', { p_name: name })
+export const adminCreateJudge = (name: string) => rpc<{ id: string }>('admin_create_judge', { p_name: name })
 export const adminUpdateJudge = (id: string, name: string, active: boolean) =>
   rpc<void>('admin_update_judge', { p_id: id, p_name: name, p_active: active })
-export const adminResetCode = (id: string) => rpc<{ id: string; code: string }>('admin_reset_judge_code', { p_id: id })
+export const adminRegenerateKey = () => rpc<void>('admin_regenerate_key')
+export const adminSetAllowNew = (allow: boolean) => rpc<void>('admin_set_allow_new', { p_allow: allow })
 export const adminSetJudging = (open: boolean) => rpc<void>('admin_set_judging', { p_open: open })
 export const adminSetReveal = (count: number) => rpc<void>('admin_set_reveal', { p_count: count })
 export const adminResolveTie = (award: string, winner: string, note: string) =>

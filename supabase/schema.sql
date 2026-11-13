@@ -8,13 +8,14 @@
 --
 -- Security model
 --   * Tables are locked down: `anon` has NO table access at all.
---   * Judges are NOT Supabase Auth users. They sign in through the
---     `judge_login` RPC with an individual access code and receive an opaque
---     session token. Every judge RPC resolves the judge from that token, so a
---     judge can only ever read/write their OWN evaluations.
+--   * Judges are NOT Supabase Auth users. They open ONE private link that carries
+--     a secret key (`?k=...`, changeable by the admin), type their name and call
+--     the `judge_login` RPC, which returns an opaque session token. Every judge
+--     RPC resolves the judge from that token, so a judge can only ever
+--     read/write their OWN evaluations. Names are matched ignoring case/spacing.
 --   * Admins are Supabase Auth users listed in `admin_users`. All admin reads
 --     go through RLS policies / RPCs that check `is_admin()`.
---   * Access codes are stored as bcrypt hashes, never in plain text.
+--   * The link key is only readable by admins (it is never returned to judges).
 -- =====================================================================
 
 create extension if not exists pgcrypto with schema extensions;
@@ -43,11 +44,11 @@ create table if not exists public.judges (
   id              uuid primary key default gen_random_uuid(),
   name            text not null check (length(btrim(name)) > 0),
   active          boolean not null default true,
-  code_hash       text not null,
-  failed_attempts int  not null default 0,
-  locked_until    timestamptz,
+  -- normalised name used to match what a judge types (case/space-insensitive)
+  name_key        text generated always as (lower(regexp_replace(btrim(name), '\s+', ' ', 'g'))) stored,
   created_at      timestamptz not null default now()
 );
+create unique index if not exists judges_name_key_uq on public.judges (name_key);
 
 create table if not exists public.judge_sessions (
   token_hash text primary key,
@@ -74,9 +75,10 @@ create table if not exists public.competition_settings (
   judging_open boolean not null default false,
   finalized    boolean not null default false,
   reveal_count int     not null default 0 check (reveal_count between 0 and 3),
+  access_key   text    not null,                      -- secret in the judges' link
+  allow_new_judges boolean not null default true,     -- may a typed, unknown name create a judge?
   updated_at   timestamptz not null default now()
 );
-insert into public.competition_settings (id) values (true) on conflict do nothing;
 
 create table if not exists public.tie_resolutions (
   award_key         text primary key check (award_key in ('first','second','third')),
@@ -121,7 +123,7 @@ revoke all on function public.is_admin() from public, anon, authenticated;
 grant execute on function public.is_admin() to authenticated;
 
 -- Admin read-only table access (a backstop: the app itself uses the admin_* RPCs).
--- Note: no grant on judges.code_hash. Nobody has direct INSERT/UPDATE/DELETE.
+-- Note: the access key (competition_settings.access_key) is not readable by table grant; admins get it via admin_overview(). Nobody has direct INSERT/UPDATE/DELETE.
 grant select on public.projects to authenticated;
 grant select (id, name, active, created_at) on public.judges to authenticated;
 grant select on public.evaluations, public.competition_settings,
@@ -183,25 +185,13 @@ begin
   end if;
 end $$;
 
-create or replace function private.gen_code() returns text
-language plpgsql volatile set search_path = public, extensions as $$
-declare
-  alphabet constant text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   -- no I, L, O, 0, 1
-  bytes bytea := gen_random_bytes(8);
-  out text := '';
-  i int;
-begin
-  for i in 0..7 loop
-    out := out || substr(alphabet, (get_byte(bytes, i) % length(alphabet)) + 1, 1);
-  end loop;
-  return out;
-end $$;
+create or replace function private.gen_key() returns text
+language sql volatile set search_path = public, extensions as $$
+  select encode(gen_random_bytes(16), 'hex')
+$$;
 
-create or replace function private.norm_code(p text) returns text
-language sql immutable as $$ select upper(regexp_replace(coalesce(p, ''), '[^A-Za-z0-9]', '', 'g')) $$;
-
-create or replace function private.fmt_code(p text) returns text
-language sql immutable as $$ select left(p, 4) || '-' || substr(p, 5) $$;
+create or replace function private.norm_name(p text) returns text
+language sql immutable as $$ select lower(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g')) $$;
 
 create or replace function private.judge_from_token(p_token text) returns uuid
 language plpgsql stable security definer set search_path = public, extensions as $$
@@ -216,6 +206,8 @@ begin
   end if;
   return jid;
 end $$;
+
+insert into public.competition_settings (id, access_key) values (true, private.gen_key()) on conflict do nothing;
 
 -- Per-project averages over ACTIVE judges only.
 create or replace function private.project_stats()
@@ -307,34 +299,49 @@ $$;
 -- Public (anon) and judge RPCs
 -- ---------------------------------------------------------------------
 
--- Names only, for the login cards.
-create or replace function public.list_login_judges() returns jsonb
-language sql stable security definer set search_path = public as $$
-  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name) order by name), '[]'::jsonb)
-    from public.judges where active;
-$$;
-
--- Failure is returned (not raised) so that the attempt counter is persisted.
-create or replace function public.judge_login(p_judge_id uuid, p_code text) returns jsonb
-language plpgsql volatile security definer set search_path = public, extensions as $$
-declare j public.judges; tok text; attempts int;
+-- Validates the link key and returns the registered names (for suggestions). Wrong key => valid:false.
+create or replace function public.list_login_judges(p_key text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare st public.competition_settings;
 begin
-  select * into j from public.judges where id = p_judge_id and active for update;
+  select * into st from public.competition_settings;
+  if p_key is null or p_key <> st.access_key then
+    return jsonb_build_object('valid', false, 'allow_new', false, 'judges', '[]'::jsonb);
+  end if;
+  return jsonb_build_object('valid', true, 'allow_new', st.allow_new_judges, 'judges',
+    coalesce((select jsonb_agg(jsonb_build_object('id', id, 'name', name) order by name)
+                from public.judges where active), '[]'::jsonb));
+end $$;
+
+-- Sign in by typed name. Failures are RETURNED ({ok:false, reason}) rather than raised.
+--   reason: bad_key | empty | inactive | unknown | confirm_new | closed
+create or replace function public.judge_login(p_key text, p_name text, p_create boolean default false) returns jsonb
+language plpgsql volatile security definer set search_path = public, extensions as $$
+declare st public.competition_settings; j public.judges; tok text; nm text := regexp_replace(btrim(coalesce(p_name, '')), '\s+', ' ', 'g');
+begin
+  select * into st from public.competition_settings;
+  if p_key is null or p_key <> st.access_key then
+    return jsonb_build_object('ok', false, 'reason', 'bad_key', 'error', 'This link is not valid. Please ask the organizers for the current link.');
+  end if;
+  if length(nm) = 0 or length(nm) > 80 then
+    return jsonb_build_object('ok', false, 'reason', 'empty', 'error', 'Please type your name.');
+  end if;
+  select * into j from public.judges where name_key = private.norm_name(nm);
+  if found and not j.active then
+    return jsonb_build_object('ok', false, 'reason', 'inactive', 'error', 'This judge profile is deactivated. Please contact the organizers.');
+  end if;
   if not found then
-    return jsonb_build_object('ok', false, 'error', 'Invalid access code.');
+    if not st.allow_new_judges then
+      return jsonb_build_object('ok', false, 'reason', 'unknown', 'error', 'Name not found. Choose your name from the list or contact the organizers.');
+    end if;
+    if st.finalized or not st.judging_open then
+      return jsonb_build_object('ok', false, 'reason', 'closed', 'error', 'Judging is closed.');
+    end if;
+    if not coalesce(p_create, false) then
+      return jsonb_build_object('ok', false, 'reason', 'confirm_new', 'error', 'This name is not registered yet.');
+    end if;
+    insert into public.judges (name) values (nm) returning * into j;
   end if;
-  if j.locked_until is not null and j.locked_until > now() then
-    return jsonb_build_object('ok', false, 'error', 'Too many attempts. Try again in a few minutes.');
-  end if;
-  if j.code_hash <> crypt(private.norm_code(p_code), j.code_hash) then
-    attempts := j.failed_attempts + 1;
-    update public.judges
-       set failed_attempts = case when attempts >= 5 then 0 else attempts end,
-           locked_until    = case when attempts >= 5 then now() + interval '5 minutes' else null end
-     where id = j.id;
-    return jsonb_build_object('ok', false, 'error', 'Invalid access code.');
-  end if;
-  update public.judges set failed_attempts = 0, locked_until = null where id = j.id;
   delete from public.judge_sessions where expires_at < now();
   tok := encode(gen_random_bytes(32), 'hex');
   insert into public.judge_sessions (token_hash, judge_id, expires_at)
@@ -409,7 +416,8 @@ begin
   select count(*) into n_judge from public.judges where active;
   select count(*) into n_done from public.evaluations e join public.judges j on j.id = e.judge_id and j.active;
   return jsonb_build_object(
-    'settings', jsonb_build_object('judging_open', s.judging_open, 'finalized', s.finalized, 'reveal_count', s.reveal_count),
+    'settings', jsonb_build_object('judging_open', s.judging_open, 'finalized', s.finalized, 'reveal_count', s.reveal_count,
+                                   'access_key', s.access_key, 'allow_new_judges', s.allow_new_judges),
     'totals', jsonb_build_object('projects', n_proj, 'judges', n_judge,
                                  'expected', n_proj * n_judge, 'completed', n_done),
     'complete', complete,
@@ -433,42 +441,51 @@ begin
     'judges', coalesce((
       select jsonb_agg(jsonb_build_object(
           'id', j.id, 'name', j.name, 'active', j.active,
-          'completed', (select count(*) from public.evaluations e where e.judge_id = j.id),
-          'locked', j.locked_until is not null and j.locked_until > now())
+          'completed', (select count(*) from public.evaluations e where e.judge_id = j.id))
         order by j.created_at, j.name)
         from public.judges j), '[]'::jsonb));
 end $$;
 
 create or replace function public.admin_create_judge(p_name text) returns jsonb
-language plpgsql volatile security definer set search_path = public, extensions as $$
-declare code text := private.gen_code(); jid uuid;
+language plpgsql volatile security definer set search_path = public as $$
+declare jid uuid;
 begin
   perform private.require_admin();
-  insert into public.judges (name, code_hash) values (btrim(p_name), crypt(code, gen_salt('bf')))
-    returning id into jid;
-  return jsonb_build_object('id', jid, 'code', private.fmt_code(code));
+  begin
+    insert into public.judges (name) values (btrim(p_name)) returning id into jid;
+  exception when unique_violation then
+    raise exception 'A judge with this name already exists.' using errcode = '23505';
+  end;
+  return jsonb_build_object('id', jid);
 end $$;
 
 create or replace function public.admin_update_judge(p_id uuid, p_name text, p_active boolean) returns void
 language plpgsql volatile security definer set search_path = public as $$
 begin
   perform private.require_admin();
-  update public.judges set name = btrim(p_name), active = p_active where id = p_id;
+  begin
+    update public.judges set name = btrim(p_name), active = p_active where id = p_id;
+  exception when unique_violation then
+    raise exception 'A judge with this name already exists.' using errcode = '23505';
+  end;
   if not found then raise exception 'Judge not found.' using errcode = '22023'; end if;
   if not p_active then delete from public.judge_sessions where judge_id = p_id; end if;
 end $$;
 
--- Generates a NEW code (the old one stops working immediately). Shown once.
-create or replace function public.admin_reset_judge_code(p_id uuid) returns jsonb
-language plpgsql volatile security definer set search_path = public, extensions as $$
-declare code text := private.gen_code();
+-- New secret link key: the old link stops working and all judges are signed out.
+create or replace function public.admin_regenerate_key() returns void
+language plpgsql volatile security definer set search_path = public as $$
 begin
   perform private.require_admin();
-  update public.judges set code_hash = crypt(code, gen_salt('bf')), failed_attempts = 0, locked_until = null
-   where id = p_id;
-  if not found then raise exception 'Judge not found.' using errcode = '22023'; end if;
-  delete from public.judge_sessions where judge_id = p_id;
-  return jsonb_build_object('id', p_id, 'code', private.fmt_code(code));
+  update public.competition_settings set access_key = private.gen_key(), updated_at = now();
+  delete from public.judge_sessions;
+end $$;
+
+create or replace function public.admin_set_allow_new(p_allow boolean) returns void
+language plpgsql volatile security definer set search_path = public as $$
+begin
+  perform private.require_admin();
+  update public.competition_settings set allow_new_judges = p_allow, updated_at = now();
 end $$;
 
 create or replace function public.admin_set_judging(p_open boolean) returns void
@@ -627,15 +644,16 @@ begin
 end $$;
 
 grant execute on function public.is_admin()                                     to authenticated;
-grant execute on function public.list_login_judges()                            to anon, authenticated;
-grant execute on function public.judge_login(uuid, text)                        to anon, authenticated;
+grant execute on function public.list_login_judges(text)                        to anon, authenticated;
+grant execute on function public.judge_login(text, text, boolean)               to anon, authenticated;
 grant execute on function public.judge_logout(text)                             to anon, authenticated;
 grant execute on function public.judge_state(text)                              to anon, authenticated;
 grant execute on function public.judge_save(text, uuid, int, int, int, int)     to anon, authenticated;
 grant execute on function public.admin_overview()                               to authenticated;
 grant execute on function public.admin_create_judge(text)                       to authenticated;
 grant execute on function public.admin_update_judge(uuid, text, boolean)        to authenticated;
-grant execute on function public.admin_reset_judge_code(uuid)                   to authenticated;
+grant execute on function public.admin_regenerate_key()                          to authenticated;
+grant execute on function public.admin_set_allow_new(boolean)                   to authenticated;
 grant execute on function public.admin_set_judging(boolean)                     to authenticated;
 grant execute on function public.admin_set_reveal(int)                          to authenticated;
 grant execute on function public.admin_resolve_tie(text, uuid, text)            to authenticated;

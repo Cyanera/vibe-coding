@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useAdmin } from '../../lib/adminSession'
 import * as api from '../../lib/api'
-import { Button, Chip, Modal, useUi } from '../ui'
+import { Button, Chip, useUi } from '../ui'
 
 const input = 'h-11 rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-navy focus:ring-2 focus:ring-navy/20'
 
@@ -10,7 +10,6 @@ export default function JudgesTab() {
   const { confirm, toast } = useUi()
   const [name, setName] = useState('')
   const [edit, setEdit] = useState<{ id: string; name: string } | null>(null)
-  const [code, setCode] = useState<{ judge: string; code: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const frozen = ov.settings.finalized
 
@@ -22,19 +21,25 @@ export default function JudgesTab() {
   }
   async function add(e: FormEvent) {
     e.preventDefault()
-    const r = await run(() => api.adminCreateJudge(name))
-    if (r) { setCode({ judge: name.trim(), code: r.code }); setName('') }
+    if (await run(() => api.adminCreateJudge(name), 'Judge added')) setName('')
   }
-  async function newCode(id: string, judge: string) {
+  const link = `${window.location.origin}/?k=${ov.settings.access_key}`
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(link); toast('success', 'Link copied') }
+    catch { toast('error', 'Copy failed. Select the link and copy it manually.') }
+  }
+  async function regenerate() {
     const ok = await confirm({
-      title: `Generate a new code for ${judge}?`,
-      message: 'The current code stops working immediately and the judge is signed out.',
-      confirmLabel: 'Generate new code', danger: true,
+      title: 'Create a new judges link?',
+      message: 'The current link stops working immediately and every judge is signed out. Send the new link to your judges.',
+      confirmLabel: 'Create new link', danger: true,
     })
-    if (!ok) return
-    const r = await run(() => api.adminResetCode(id))
-    if (r) setCode({ judge, code: r.code })
+    if (ok) await run(api.adminRegenerateKey, 'New link created')
   }
+  async function toggleNew() {
+    await run(() => api.adminSetAllowNew(!ov.settings.allow_new_judges), ov.settings.allow_new_judges ? 'New names closed' : 'New names allowed')
+  }
+
   async function toggle(id: string, judge: string, active: boolean) {
     if (active) {
       const ok = await confirm({
@@ -53,7 +58,23 @@ export default function JudgesTab() {
 
   return (
     <div className="space-y-4">
-      {frozen && <p className="rounded-xl bg-warn-50 px-4 py-3 text-sm text-warn">Results are finalized. Reopen the competition to add or edit judges. New access codes can still be issued.</p>}
+      {frozen && <p className="rounded-xl bg-warn-50 px-4 py-3 text-sm text-warn">Results are finalized. Reopen the competition to add or edit judges.</p>}
+      <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm" aria-label="Judges link">
+        <h2 className="text-sm font-semibold text-slate-600">Private link for judges</h2>
+        <p className="text-xs text-slate-500">Send this link only to the judges. Opening it, each judge types their name and starts evaluating. Anyone with the link can sign in as any registered name, so share it privately.</p>
+        <input readOnly value={link} aria-label="Judges link" onFocus={(e) => e.currentTarget.select()}
+               className="h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm" data-testid="judge-link" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => void copyLink()}>Copy link</Button>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void regenerate()}>Create new link</Button>
+          <label className="ml-auto flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={ov.settings.allow_new_judges} onChange={() => void toggleNew()} disabled={busy}
+                   className="h-5 w-5 accent-[#16324f]" />
+            Allow judges to add their own name
+          </label>
+        </div>
+      </section>
+
       <form onSubmit={add} className="flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-sm">
         <label className="min-w-48 flex-1 text-xs font-semibold text-slate-500">Judge name
           <input required value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className={`${input} mt-1 block w-full`} />
@@ -74,10 +95,8 @@ export default function JudgesTab() {
               <>
                 <span className={`min-w-0 flex-1 truncate font-semibold ${j.active ? '' : 'text-slate-400'}`}>{j.name}</span>
                 {j.active ? <Chip tone="ok">Active</Chip> : <Chip>Inactive</Chip>}
-                {j.locked && <Chip tone="bad">Locked</Chip>}
                 <span className="text-xs text-slate-500 tnum">{j.completed}/{ov.totals.projects} scored</span>
                 <Button size="sm" variant="secondary" disabled={frozen} onClick={() => setEdit({ id: j.id, name: j.name })}>Edit</Button>
-                <Button size="sm" variant="secondary" disabled={busy} onClick={() => void newCode(j.id, j.name)}>New code</Button>
                 <Button size="sm" variant="ghost" disabled={busy || frozen} className={j.active ? '!text-bad' : ''} onClick={() => void toggle(j.id, j.name, j.active)}>
                   {j.active ? 'Deactivate' : 'Activate'}
                 </Button>
@@ -88,13 +107,6 @@ export default function JudgesTab() {
         {ov.judges.length === 0 && <li className="px-4 py-8 text-center text-slate-500">No judges yet.</li>}
       </ul>
 
-      {code && (
-        <Modal title={`Access code for ${code.judge}`} onClose={() => setCode(null)}>
-          <p className="text-sm text-slate-600">Share this code privately with the judge. It is shown only once and cannot be recovered; generate a new one if it is lost.</p>
-          <p className="my-4 rounded-xl bg-navy-50 py-4 text-center text-3xl font-bold tracking-widest text-navy tnum" data-testid="new-code">{code.code}</p>
-          <Button variant="secondary" className="w-full" onClick={() => { void navigator.clipboard?.writeText(code.code).then(() => toast('success', 'Copied')).catch(() => toast('error', 'Copy failed')) }}>Copy code</Button>
-        </Modal>
-      )}
     </div>
   )
 }
