@@ -79,7 +79,7 @@ create table if not exists public.competition_settings (
 insert into public.competition_settings (id) values (true) on conflict do nothing;
 
 create table if not exists public.tie_resolutions (
-  award_key         text primary key check (award_key in ('overall','innovation','uiux')),
+  award_key         text primary key check (award_key in ('first','second','third')),
   winner_project_id uuid  not null,
   candidate_ids     uuid[] not null,          -- the exact tied set this decision applies to
   note              text,
@@ -88,7 +88,7 @@ create table if not exists public.tie_resolutions (
 );
 
 create table if not exists public.finalized_awards (
-  award_key      text primary key check (award_key in ('overall','innovation','uiux')),
+  award_key      text primary key check (award_key in ('first','second','third')),
   project_id     uuid not null,
   project_number int  not null,
   project_name   text not null,
@@ -233,19 +233,18 @@ language sql stable security definer set search_path = public as $$
    group by p.id, p.number, p.name
 $$;
 
--- Sequential award selection. Order matters and a project can win only one award:
---   1. overall    : highest avg total (/20)
---   2. innovation : highest avg Idea & Innovation (/5), excluding award 1 winner
---   3. uiux       : highest avg UI/UX (/5), excluding awards 1 and 2 winners
--- A tie is never broken automatically: status = 'tie' until an admin decides.
--- If an award is unresolved, the following awards are 'blocked' (they depend on it).
+-- Podium selection: 1st, 2nd and 3rd place by highest AVERAGE TOTAL (/20) across all criteria.
+-- Places are filled in order and a project can take only one place: each place is chosen
+-- among the projects not already placed. A tie is never broken automatically:
+-- status = 'tie' until an admin decides. The tied project that is not chosen stays
+-- eligible for the next place. If a place is undecided, the following places are 'blocked'.
 create or replace function private.compute_awards() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
-  keys     text[] := array['overall', 'innovation', 'uiux'];
-  labels   text[] := array['Best Overall Project', 'Best Innovative Idea', 'Best UI/UX Design'];
-  metrics  text[] := array['avg_total', 'avg_idea', 'avg_uiux'];
-  maxes    int[]  := array[20, 5, 5];
+  keys     text[] := array['first', 'second', 'third'];
+  labels   text[] := array['1st Place', '2nd Place', '3rd Place'];
+  metrics  text[] := array['avg_total', 'avg_total', 'avg_total'];
+  maxes    int[]  := array[20, 20, 20];
   excluded uuid[] := '{}';
   blocked  boolean := false;
   result   jsonb := '[]'::jsonb;
@@ -420,7 +419,7 @@ begin
     'final', coalesce((select jsonb_agg(jsonb_build_object(
           'key', f.award_key, 'project_id', f.project_id, 'number', f.project_number,
           'name', f.project_name, 'score', f.score, 'tie_resolved', f.tie_resolved, 'note', f.decision_note)
-          order by case f.award_key when 'overall' then 1 when 'innovation' then 2 else 3 end)
+          order by case f.award_key when 'first' then 1 when 'second' then 2 else 3 end)
           from public.finalized_awards f), '[]'::jsonb),
     'projects', coalesce((
       select jsonb_agg(jsonb_build_object(

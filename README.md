@@ -2,14 +2,18 @@
 
 University of Jeddah · React + Tailwind + Supabase · deploys to Vercel.
 
-Judges score 10 projects on 4 criteria (0–5 each, 20 total) from their phones. The admin watches progress, ranks projects, resolves ties, finalizes three awards and reveals them on a projector.
+Judges score 10 projects on 4 criteria (0–5 each, 20 total) from their phones. The admin watches progress, ranks projects, resolves ties, finalizes the top three and reveals them on a projector.
 
-## How awards are chosen (in this exact order, one award per project)
-1. **Best Overall Project**: highest average total (/20).
-2. **Best Innovative Idea**: highest average *Idea & Innovation* (/5), Award 1 winner excluded.
-3. **Best UI/UX Design**: highest average *UI/UX* (/5), Award 1 and 2 winners excluded.
+## How the winners are chosen
+Three places, ranked by the **average total score (/20)** across all four criteria and all active judges:
 
-Averages are across **active** judges. A tie is never broken automatically: the award shows **Tie – Admin Review Required**, later awards wait, and the admin records the winner and a reason. A decision applies only to that exact tied set; if scores change it is ignored. Finalizing requires every active judge to have scored every project and no open ties. The logic lives once, in SQL (`private.compute_awards`).
+| Place | Prize |
+|---|---|
+| 1st | 300 SAR |
+| 2nd | 200 SAR |
+| 3rd | 100 SAR |
+
+Places are filled in order (1st, then 2nd, then 3rd) and a project can take only one place. A tie is never broken automatically: the place shows **Tie – Admin Review Required**, later places wait, and the admin records the winner and a reason. The tied project that was not chosen stays eligible for the next place. A decision applies only to that exact tied set; if scores change it is ignored. Finalizing requires every active judge to have scored every project and no open ties. The logic lives once, in SQL (`private.compute_awards`); prize amounts are in `src/lib/prizes.ts`.
 
 ## Deploy (about 15 minutes)
 
@@ -37,7 +41,7 @@ Averages are across **active** judges. A tie is never broken automatically: the 
 
 ### Run day
 Judge: open the site → tap name → enter code → score → **Save & Next**.
-Admin: `/admin` → Results → Winners (resolve ties) → **Finalize Results** → **Presentation Mode** (Space/→ reveals the next award; ← hides; the reveal state is stored, so a second device can drive it).
+Admin: `/admin` → Results → Winners (resolve ties) → **Finalize Results** → **Presentation Mode** (Space/→ reveals the next place (3rd, then 2nd, then 1st); ← hides; the reveal state is stored, so a second device can drive it).
 
 ## Security model
 - `anon` has **no table access**. Judges are not Supabase users: `judge_login` checks a bcrypt-hashed code (5 failures lock that judge for 5 min) and returns a 48 h opaque session token; every judge RPC derives the judge from the token, so a judge can only read or write their own evaluations and never sees other scores.

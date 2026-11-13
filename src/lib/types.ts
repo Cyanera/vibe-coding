@@ -13,7 +13,7 @@ export type LoginResult =
   | { ok: true; token: string; judge: LoginJudge }
   | { ok: false; error: string }
 
-export type AwardKey = 'overall' | 'innovation' | 'uiux'
+export type AwardKey = 'first' | 'second' | 'third'
 export type Candidate = { project_id: string; number: number; name: string; score: number }
 export type Award = {
   key: AwardKey

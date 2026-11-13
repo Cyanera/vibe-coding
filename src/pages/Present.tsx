@@ -3,12 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AdminGate, useAdmin } from '../lib/adminSession'
 import * as api from '../lib/api'
 import { projectLabel } from '../lib/format'
+import { PRIZES } from '../lib/prizes'
+import type { AwardKey } from '../lib/types'
 
 export default function Present() {
   return <AdminGate pollMs={2000}><Stage /></AdminGate>
 }
 
-const LABELS = ['Best Overall Project', 'Best Innovative Idea', 'Best UI/UX Design']
+const KEYS: AwardKey[] = ['first', 'second', 'third']
+const LABELS = ['1st Place', '2nd Place', '3rd Place']
+// Suspense order: 3rd place is revealed first, 1st place last.
+const REVEAL_ORDER = [2, 1, 0]
 
 function Stage() {
   const { ov, refresh } = useAdmin()
@@ -70,13 +75,13 @@ function Stage() {
 
       <section className="mx-auto grid w-full max-w-7xl flex-1 content-center gap-6 px-6 py-10 md:grid-cols-3">
         {LABELS.map((label, i) => {
-          const f = ov.final.find((x) => x.key === (['overall', 'innovation', 'uiux'] as const)[i])
-          const revealed = i < shown && f
+          const f = ov.final.find((x) => x.key === KEYS[i])
+          const revealed = REVEAL_ORDER.slice(0, shown).includes(i) && f
           return (
             <article key={label} data-testid={`slot-${i + 1}`}
                      className={`flex min-h-56 flex-col items-center justify-center rounded-3xl border px-6 py-10 text-center transition-opacity duration-500 md:min-h-80 ${
                        revealed ? 'border-white/40 bg-white/10 opacity-100' : 'border-white/10 bg-white/[0.03] opacity-60'}`}>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white/70 md:text-lg">Award {i + 1}</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white/70 md:text-lg">{PRIZES[KEYS[i]]} SAR</p>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">{label}</h2>
               {revealed ? (
                 <div className="mt-8">
@@ -94,7 +99,7 @@ function Stage() {
       <div className={`fixed inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 bg-black/50 p-3 transition-opacity safe-b ${controls ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
         <button onClick={() => void set(shown - 1)} disabled={shown === 0} className="h-11 rounded-xl border border-white/30 px-4 font-semibold disabled:opacity-30">‹ Hide last</button>
         <button onClick={() => void set(shown + 1)} disabled={shown >= 3} className="h-11 rounded-xl bg-white px-6 font-semibold text-navy disabled:opacity-30">
-          {shown >= 3 ? 'All winners revealed' : `Reveal ${LABELS[shown]}`}
+          {shown >= 3 ? 'All winners revealed' : `Reveal ${LABELS[REVEAL_ORDER[shown]]}`}
         </button>
         <button onClick={() => void set(0)} disabled={shown === 0} className="h-11 rounded-xl border border-white/30 px-4 font-semibold disabled:opacity-30">Reset</button>
         <button onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen?.() }}

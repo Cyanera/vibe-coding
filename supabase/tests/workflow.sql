@@ -87,20 +87,21 @@ select t.ok((public.judge_state(:'tok1')->>'judging_open')::boolean = false, 'ju
 reset role;
 update competition_settings set judging_open = true;
 
-\echo == 6. Award order and one-award-per-project
--- Same scores from all three judges. P1 is best everywhere; P2 has the best remaining idea; P3 the best remaining UI/UX.
+\echo == 6. Podium: 1st/2nd/3rd by average total, one place per project
+-- Same scores from all three judges. Totals: P1=20, P2=18, P3=16, others lower.
 create temp table plan(n int, i int, f int, u int, p int);
-insert into plan values (1,5,5,5,5),(2,5,4,3,4),(3,3,3,5,3),(4,4,4,4,4),(5,3,4,4,3),
-                        (6,2,3,3,2),(7,4,3,4,3),(8,1,2,2,1),(9,3,3,3,3),(10,4,4,4,4);
+insert into plan values (1,5,5,5,5),(2,5,5,4,4),(3,4,4,4,4),(4,4,4,3,3),(5,3,4,4,3),
+                        (6,2,3,3,2),(7,4,3,4,3),(8,1,2,2,1),(9,3,3,3,3),(10,4,4,3,2);
 delete from evaluations;
 insert into evaluations(judge_id,project_id,idea,functionality,uiux,presentation)
 select j.id, t.pid(pl.n), pl.i, pl.f, pl.u, pl.p from judges j, plan pl;
 set role authenticated; set request.jwt.claim.sub = :'admin_id';
 select t.ok((public.admin_overview()->>'complete')::boolean, 'overview: judging complete');
 select (public.admin_overview()->'awards') as aw \gset
+select t.ok(:'aw'::jsonb->0->>'label' = '1st Place' and :'aw'::jsonb->2->>'label' = '3rd Place', 'three places: 1st, 2nd, 3rd');
 select t.ok(:'aw'::jsonb->0->'winner'->>'number' = '1' and :'aw'::jsonb->1->'winner'->>'number' = '2' and :'aw'::jsonb->2->'winner'->>'number' = '3',
-            'winners are P1 (overall), P2 (idea), P3 (UI/UX): no project wins twice');
-select t.ok((:'aw'::jsonb->0->'winner'->>'score')::numeric = 20 and (:'aw'::jsonb->1->>'status') = 'winner', 'overall score is 20 and status winner');
+            'podium is P1, P2, P3 by average total');
+select t.ok((:'aw'::jsonb->0->'winner'->>'score')::numeric = 20 and (:'aw'::jsonb->1->'winner'->>'score')::numeric = 18 and (:'aw'::jsonb->2->'winner'->>'score')::numeric = 16, 'scores 20 / 18 / 16 out of 20');
 select t.ok((public.admin_overview()->'projects'->0->>'rank') = '1', 'P1 ranked first');
 select t.ok((public.admin_overview()->>'ready_to_finalize')::boolean, 'ready to finalize when complete and no ties');
 
@@ -110,7 +111,7 @@ select t.fails('select public.admin_overview()', 'Not authorized');
 select t.fails('select public.admin_finalize()', 'Not authorized');
 select t.fails('select public.admin_create_judge(''x'')', 'Not authorized');
 select t.fails('select public.admin_set_judging(false)', 'Not authorized');
-select t.fails($$select public.admin_resolve_tie('overall', gen_random_uuid(), '')$$, 'Not authorized');
+select t.fails($$select public.admin_resolve_tie('first', gen_random_uuid(), '')$$, 'Not authorized');
 select t.ok((select count(*) from public.evaluations) = 0, 'non-admin sees zero evaluation rows (RLS)');
 select t.ok((select count(*) from public.projects) = 0, 'non-admin sees zero project rows (RLS)');
 select t.fails('insert into public.projects(number,name) values (50,''x'')', 'permission denied');
@@ -121,22 +122,22 @@ set request.jwt.claim.sub = :'admin_id';
 select t.ok((select count(*) from public.evaluations) = 30, 'admin reads all 30 evaluations');
 select t.fails('select code_hash from public.judges', 'permission denied');
 
-\echo == 8. Tie in Award 1 blocks everything until an admin decides
+\echo == 8. Tie for 1st blocks 2nd and 3rd until an admin decides
 reset role;
-update evaluations set idea=5, functionality=5, uiux=5, presentation=5 where project_id = t.pid(2);
+update evaluations set idea=5, functionality=5, uiux=5, presentation=5 where project_id = t.pid(2);   -- P2 now 20 like P1
 set role authenticated; set request.jwt.claim.sub = :'admin_id';
 select (public.admin_overview()->'awards') as aw \gset
-select t.ok(:'aw'::jsonb->0->>'status' = 'tie' and jsonb_array_length(:'aw'::jsonb->0->'candidates') = 2, 'award 1 is a tie between 2 projects');
-select t.ok(:'aw'::jsonb->1->>'status' = 'blocked' and :'aw'::jsonb->2->>'status' = 'blocked', 'awards 2 and 3 wait for award 1');
+select t.ok(:'aw'::jsonb->0->>'status' = 'tie' and jsonb_array_length(:'aw'::jsonb->0->'candidates') = 2, '1st place is a tie between 2 projects');
+select t.ok(:'aw'::jsonb->1->>'status' = 'blocked' and :'aw'::jsonb->2->>'status' = 'blocked', '2nd and 3rd wait for 1st');
 select t.ok(not (public.admin_overview()->>'ready_to_finalize')::boolean, 'not ready to finalize while tied');
 select t.fails('select public.admin_finalize()', 'Resolve all ties');
-select t.fails(format($$select public.admin_resolve_tie('overall', %L, 'x')$$, t.pid(5)), 'one of the tied');
-select t.fails(format($$select public.admin_resolve_tie('innovation', %L, 'x')$$, t.pid(1)), 'not currently tied');
-select public.admin_resolve_tie('overall', t.pid(2), 'Stronger live demo') \gset
+select t.fails(format($$select public.admin_resolve_tie('first', %L, 'x')$$, t.pid(5)), 'one of the tied');
+select t.fails(format($$select public.admin_resolve_tie('second', %L, 'x')$$, t.pid(1)), 'not currently tied');
+select public.admin_resolve_tie('first', t.pid(2), 'Stronger live demo') \gset
 select (public.admin_overview()->'awards') as aw \gset
-select t.ok(:'aw'::jsonb->0->'winner'->>'number' = '2' and (:'aw'::jsonb->0->>'tie_resolved')::boolean and :'aw'::jsonb->0->>'note' = 'Stronger live demo', 'admin decision recorded: P2 wins overall');
-select t.ok(:'aw'::jsonb->1->'winner'->>'number' = '1', 'P1 (excluded from nothing yet) now wins Best Innovative Idea');
-select t.ok(:'aw'::jsonb->2->'winner'->>'number' = '3', 'P3 wins UI/UX');
+select t.ok(:'aw'::jsonb->0->'winner'->>'number' = '2' and (:'aw'::jsonb->0->>'tie_resolved')::boolean and :'aw'::jsonb->0->>'note' = 'Stronger live demo', 'admin decision recorded: P2 takes 1st');
+select t.ok(:'aw'::jsonb->1->'winner'->>'number' = '1', 'the tied project that lost (P1) takes 2nd place');
+select t.ok(:'aw'::jsonb->2->'winner'->>'number' = '3', 'P3 takes 3rd place');
 
 \echo == 9. A stale decision is ignored if the tied set changes
 reset role;
@@ -147,33 +148,29 @@ reset role;
 update evaluations set presentation = 5 where project_id = t.pid(1) and judge_id = :'j1';
 set role authenticated; set request.jwt.claim.sub = :'admin_id';
 select t.ok((public.admin_overview()->'awards'->0->>'tie_resolved')::boolean, 'tie again with same set -> original decision applies again');
-select public.admin_clear_tie('overall') \gset
+select public.admin_clear_tie('first') \gset
 select t.ok((public.admin_overview()->'awards'->0->>'status') = 'tie', 'clearing the decision reopens the tie');
-select public.admin_resolve_tie('overall', t.pid(1), null) \gset
+select public.admin_resolve_tie('first', t.pid(1), null) \gset
 
-\echo == 10. Tie in Award 2
+\echo == 10. Tie for 2nd place
 reset role;
-update evaluations set idea = 5 where project_id = t.pid(4);       -- P4 idea 5; P1 (overall winner) excluded
-update evaluations set idea = 5 where project_id = t.pid(3);       -- P3 idea 5 too
+update evaluations set idea=5, functionality=5, uiux=4, presentation=4 where project_id in (t.pid(2), t.pid(3));   -- P2 = P3 = 18
 set role authenticated; set request.jwt.claim.sub = :'admin_id';
 select (public.admin_overview()->'awards') as aw \gset
-select t.ok(:'aw'::jsonb->1->>'status' = 'tie' and jsonb_array_length(:'aw'::jsonb->1->'candidates') = 3, 'award 2 is a 3-way tie (P2, P3, P4); P1 excluded');
-select t.ok(:'aw'::jsonb->2->>'status' = 'blocked', 'award 3 blocked until award 2 decided');
-select public.admin_resolve_tie('innovation', t.pid(4), 'Most original concept') \gset
-select (public.admin_overview()->'awards') as aw \gset
-select t.ok(:'aw'::jsonb->1->'winner'->>'number' = '4', 'P4 wins Best Innovative Idea by admin decision');
-select t.ok(:'aw'::jsonb->2->>'status' = 'tie' and jsonb_array_length(:'aw'::jsonb->2->'candidates') = 2, 'award 3 is now a tie (P2 vs P3, both UI/UX 5); P1 and P4 excluded');
+select t.ok(:'aw'::jsonb->0->'winner'->>'number' = '1' and not (:'aw'::jsonb->0->>'tie_resolved')::boolean, 'P1 (20) takes 1st outright; old 1st-place decision is stale');
+select t.ok(:'aw'::jsonb->1->>'status' = 'tie' and jsonb_array_length(:'aw'::jsonb->1->'candidates') = 2, '2nd place is a tie (P2 vs P3 at 18)');
+select t.ok(:'aw'::jsonb->2->>'status' = 'blocked', '3rd place blocked until 2nd decided');
 select t.fails('select public.admin_finalize()', 'Resolve all ties');
-select public.admin_resolve_tie('uiux', t.pid(3), 'Cleaner navigation') \gset
+select public.admin_resolve_tie('second', t.pid(3), 'Cleaner demo') \gset
 select (public.admin_overview()->'awards') as aw \gset
-select t.ok(:'aw'::jsonb->2->'winner'->>'number' = '3', 'P3 wins Best UI/UX by admin decision');
-select t.ok((public.admin_overview()->>'ready_to_finalize')::boolean, 'ready to finalize after ties resolved');
+select t.ok(:'aw'::jsonb->1->'winner'->>'number' = '3' and :'aw'::jsonb->2->'winner'->>'number' = '2', 'P3 takes 2nd by decision; the other tied project (P2) takes 3rd');
+select t.ok((public.admin_overview()->>'ready_to_finalize')::boolean, 'ready to finalize after the tie is resolved');
 
 \echo == 11. Finalize freezes everything; reopen restores
 select public.admin_finalize() \gset
-select t.ok((select count(*) from public.finalized_awards) = 3, 'three finalized awards stored');
-select t.ok((select string_agg(project_number::text, ',' order by award_key) from public.finalized_awards) = '4,1,3', 'finalized winners: idea=P4, overall=P1, uiux=P3');
-select t.ok((select tie_resolved and decision_note = 'Most original concept' from public.finalized_awards where award_key='innovation'), 'tie decision stored with the award');
+select t.ok((select count(*) from public.finalized_awards) = 3, 'three finalized places stored');
+select t.ok((select string_agg(project_number::text, ',' order by award_key) from public.finalized_awards) = '1,3,2', 'finalized podium: 1st=P1, 2nd=P3, 3rd=P2');
+select t.ok((select tie_resolved and decision_note = 'Cleaner demo' from public.finalized_awards where award_key='second'), 'tie decision stored with the place');
 select t.fails('select public.admin_finalize()', 'already finalized');
 select t.fails('select public.admin_set_judging(true)', 'finalized');
 select t.fails('select public.admin_save_project(null, 11, ''Late'')', 'finalized');

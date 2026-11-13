@@ -17,7 +17,7 @@ export default function Results() {
 
   const winners = useMemo(() => {
     const m = new Map<string, string[]>()
-    const short = { overall: 'Overall', innovation: 'Idea', uiux: 'UI/UX' } as const
+    const short = { first: '1st', second: '2nd', third: '3rd' } as const
     const add = (id: string | undefined, k: keyof typeof short) => { if (id) m.set(id, [...(m.get(id) ?? []), short[k]]) }
     if (ov.settings.finalized) ov.final.forEach((f) => add(f.project_id, f.key))
     else ov.awards.forEach((a) => add(a.winner?.project_id, a.key))

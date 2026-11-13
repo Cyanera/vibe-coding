@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAdmin } from '../../lib/adminSession'
 import * as api from '../../lib/api'
 import { fmt, projectLabel } from '../../lib/format'
+import { prizeLabel } from '../../lib/prizes'
 import type { Award, FinalAward } from '../../lib/types'
 import { Button, Chip, useUi } from '../ui'
 
@@ -93,7 +94,7 @@ function AwardCard({ award: a, index, final }: { award: Award; index: number; fi
     const c = a.candidates.find((x) => x.project_id === pick)!
     const ok = await confirm({
       title: 'Record tie decision?',
-      message: <>{projectLabel(c.number)} · {c.name} will receive <b>{a.label}</b>. This decision is recorded with your note.</>,
+      message: <>{projectLabel(c.number)} · {c.name} will take <b>{a.label}</b>. This decision is recorded with your note.</>,
       confirmLabel: 'Record decision',
     })
     if (!ok) return
@@ -111,15 +112,15 @@ function AwardCard({ award: a, index, final }: { award: Award; index: number; fi
 
   return (
     <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label={a.label}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Award {index + 1}</p>
-      <h3 className="mt-1 text-lg font-bold text-navy">{a.label}</h3>
+      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Place {index + 1} of 3</p>
+      <h3 className="mt-1 text-lg font-bold text-navy">{a.label} <span className="font-semibold text-ok">· {prizeLabel(a.key)}</span></h3>
 
       {shown && (
         <div className="mt-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{projectLabel(shown.number)}</p>
           <p className="text-2xl font-bold leading-tight" data-testid={`winner-${a.key}`}>{shown.name}</p>
           <p className="mt-2 text-lg font-semibold text-ok tnum">{fmt(shown.score)} / {a.max}
-            <span className="ml-2 text-sm font-normal text-slate-500">{a.key === 'overall' ? 'average total' : a.key === 'innovation' ? 'avg. Idea & Innovation' : 'avg. UI/UX Design'}</span>
+            <span className="ml-2 text-sm font-normal text-slate-500">average total</span>
           </p>
           {resolved && (
             <p className="mt-3 rounded-xl bg-navy-50 px-3 py-2 text-xs text-navy">
@@ -147,7 +148,7 @@ function AwardCard({ award: a, index, final }: { award: Award; index: number; fi
           <Button className="w-full" disabled={!pick || busy} onClick={() => void decide()}>Record Decision</Button>
         </div>
       )}
-      {a.status === 'blocked' && !final && <p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">Waiting for Award {index} to be decided.</p>}
+      {a.status === 'blocked' && !final && <p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">Waiting for {index === 1 ? '1st' : '2nd'} place to be decided.</p>}
       {a.status === 'none' && !final && <p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">No eligible project has scores yet.</p>}
     </article>
   )
