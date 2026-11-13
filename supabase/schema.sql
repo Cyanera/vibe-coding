@@ -477,15 +477,15 @@ create or replace function public.admin_regenerate_key() returns void
 language plpgsql volatile security definer set search_path = public as $$
 begin
   perform private.require_admin();
-  update public.competition_settings set access_key = private.gen_key(), updated_at = now();
-  delete from public.judge_sessions;
+  update public.competition_settings set access_key = private.gen_key(), updated_at = now() where id;
+  delete from public.judge_sessions where true;
 end $$;
 
 create or replace function public.admin_set_allow_new(p_allow boolean) returns void
 language plpgsql volatile security definer set search_path = public as $$
 begin
   perform private.require_admin();
-  update public.competition_settings set allow_new_judges = p_allow, updated_at = now();
+  update public.competition_settings set allow_new_judges = p_allow, updated_at = now() where id;
 end $$;
 
 create or replace function public.admin_set_judging(p_open boolean) returns void
@@ -495,7 +495,7 @@ begin
   if p_open and (select finalized from public.competition_settings) then
     raise exception 'Results are finalized. Reopen the competition first.' using errcode = '55000';
   end if;
-  update public.competition_settings set judging_open = p_open, updated_at = now();
+  update public.competition_settings set judging_open = p_open, updated_at = now() where id;
 end $$;
 
 create or replace function public.admin_set_reveal(p_count int) returns void
@@ -505,7 +505,7 @@ begin
   if not (select finalized from public.competition_settings) then
     raise exception 'Finalize the results before presenting.' using errcode = '55000';
   end if;
-  update public.competition_settings set reveal_count = least(greatest(p_count, 0), 3), updated_at = now();
+  update public.competition_settings set reveal_count = least(greatest(p_count, 0), 3), updated_at = now() where id;
 end $$;
 
 create or replace function public.admin_resolve_tie(p_award text, p_winner uuid, p_note text) returns void
@@ -556,22 +556,22 @@ begin
   if exists (select 1 from jsonb_array_elements(awards) x where x ->> 'status' <> 'winner') then
     raise exception 'Resolve all ties before finalizing.' using errcode = '55000';
   end if;
-  delete from public.finalized_awards;
+  delete from public.finalized_awards where true;
   for a in select * from jsonb_array_elements(awards) loop
     insert into public.finalized_awards (award_key, project_id, project_number, project_name, score, tie_resolved, decision_note)
     values (a ->> 'key', (a #>> '{winner,project_id}')::uuid, (a #>> '{winner,number}')::int,
             a #>> '{winner,name}', (a #>> '{winner,score}')::numeric,
             (a ->> 'tie_resolved')::boolean, a ->> 'note');
   end loop;
-  update public.competition_settings set finalized = true, judging_open = false, reveal_count = 0, updated_at = now();
+  update public.competition_settings set finalized = true, judging_open = false, reveal_count = 0, updated_at = now() where id;
 end $$;
 
 create or replace function public.admin_reopen() returns void
 language plpgsql volatile security definer set search_path = public as $$
 begin
   perform private.require_admin();
-  delete from public.finalized_awards;
-  update public.competition_settings set finalized = false, judging_open = true, reveal_count = 0, updated_at = now();
+  delete from public.finalized_awards where true;
+  update public.competition_settings set finalized = false, judging_open = true, reveal_count = 0, updated_at = now() where id;
 end $$;
 
 
