@@ -18,6 +18,8 @@ Places are filled in order (1st, then 2nd, then 3rd) and a project can take only
 ## Deploy (about 15 minutes)
 
 ### 1. Supabase
+> If the SQL Editor says a column “does not exist” (for example `e.project_id`), the project already has an older table with the same name. Use a fresh Supabase project, or run `supabase/reset.sql` first (it deletes all data in these tables; check them before running).
+
 1. Create a project at supabase.com.
 2. **SQL Editor** → run `supabase/schema.sql`, then `supabase/seed.sql` (your 10 projects + 3 sample judges).
 3. **Authentication → Providers → Email**: turn **off** “Allow new users to sign up”.
